@@ -13,6 +13,7 @@ class TutorialFileManager(
     private val json = Json {
         prettyPrint = true
         ignoreUnknownKeys = true
+        coerceInputValues = true
     }
 
     private val tutorialsDir get() = "$basePath/tutorials".toPath()

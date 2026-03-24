@@ -2,9 +2,11 @@ package com.pano.tutorialmaker.editor
 
 import cafe.adriel.voyager.core.model.ScreenModel
 import com.pano.tutorialmaker.io.TutorialFileManager
+import com.pano.tutorialmaker.model.TriggerType
 import com.pano.tutorialmaker.model.Tutorial
 import com.pano.tutorialmaker.model.TutorialSection
 import com.pano.tutorialmaker.model.TutorialStep
+import com.pano.tutorialmaker.tagging.TutorialTagRegistry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,6 +30,11 @@ class EditorScreenModel(
 
     init {
         refreshTutorialList()
+        // Auto-load the most recent tutorial
+        val ids = fileManager.listTutorials()
+        if (ids.isNotEmpty()) {
+            loadTutorial(ids.first())
+        }
     }
 
     val selectedStep: TutorialStep?
@@ -64,6 +71,39 @@ class EditorScreenModel(
                 selectedSectionIndex = sections.size,
                 selectedStepIndex = 0
             )
+        }
+    }
+
+    fun autoPopulateSectionTags(sectionIndex: Int, step: TutorialStep) {
+        val tag = step.target.tag ?: return
+        _state.update { state ->
+            val sections = state.tutorial.sections.toMutableList()
+            val section = sections.getOrNull(sectionIndex) ?: return@update state
+
+            // Find which screen this tag is on (use the first active screen)
+            val activeScreenTag = TutorialTagRegistry.screens.keys.firstOrNull()
+
+            val updated = when (section.triggerType) {
+                TriggerType.ELEMENT -> section.copy(
+                    screenTag = activeScreenTag ?: section.screenTag,
+                    elementTag = tag
+                )
+                else -> section.copy(
+                    screenTag = activeScreenTag ?: section.screenTag
+                )
+            }
+
+            sections[sectionIndex] = updated
+            state.copy(tutorial = state.tutorial.copy(sections = sections))
+        }
+    }
+
+    fun updateSection(index: Int, section: TutorialSection) {
+        _state.update { state ->
+            val sections = state.tutorial.sections.toMutableList()
+            if (index !in sections.indices) return@update state
+            sections[index] = section
+            state.copy(tutorial = state.tutorial.copy(sections = sections))
         }
     }
 

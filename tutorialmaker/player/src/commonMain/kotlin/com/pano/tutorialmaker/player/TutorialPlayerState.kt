@@ -23,6 +23,10 @@ class TutorialPlayerState(
 
     val totalSteps: Int get() = flatSteps.size
 
+    /** Steps in the current section */
+    val currentSectionStepCount: Int
+        get() = tutorial.sections.getOrNull(currentSectionIndex)?.steps?.size ?: 0
+
     val flatStepIndex: Int
         get() {
             var index = 0
@@ -43,12 +47,8 @@ class TutorialPlayerState(
 
         if (currentStepIndex < section.steps.size - 1) {
             currentStepIndex++
-        } else if (currentSectionIndex < tutorial.sections.size - 1) {
-            // Cross section boundary
-            currentSectionIndex++
-            currentStepIndex = 0
         } else {
-            // End of tutorial
+            // End of section — stop. SectionTrigger handles queuing next sections.
             isActive = false
         }
     }
@@ -56,12 +56,8 @@ class TutorialPlayerState(
     fun previous() {
         if (currentStepIndex > 0) {
             currentStepIndex--
-        } else if (currentSectionIndex > 0) {
-            // Go back to previous section's last step
-            currentSectionIndex--
-            val prevSection = tutorial.sections[currentSectionIndex]
-            currentStepIndex = (prevSection.steps.size - 1).coerceAtLeast(0)
         }
+        // Don't go back across section boundaries
     }
 
     fun skip() {

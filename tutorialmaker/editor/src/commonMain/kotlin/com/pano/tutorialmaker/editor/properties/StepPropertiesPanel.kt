@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.pano.tutorialmaker.model.SpotlightShape
+import com.pano.tutorialmaker.model.StepMode
 import com.pano.tutorialmaker.model.TextPosition
 import com.pano.tutorialmaker.model.TutorialStep
 import com.pano.tutorialmaker.tagging.TutorialTagRegistry
@@ -45,6 +46,21 @@ fun StepPropertiesPanel(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Step Properties", style = MaterialTheme.typography.titleMedium)
+
+        // Step mode
+        Text("Mode", style = MaterialTheme.typography.labelMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = step.mode == StepMode.TOOLTIP,
+                onClick = { onStepChanged(step.copy(mode = StepMode.TOOLTIP)) },
+                label = { Text("Tooltip") }
+            )
+            FilterChip(
+                selected = step.mode == StepMode.WALKTHROUGH,
+                onClick = { onStepChanged(step.copy(mode = StepMode.WALKTHROUGH)) },
+                label = { Text("Walkthrough") }
+            )
+        }
 
         // Target tag dropdown
         val availableTags = TutorialTagRegistry.elements.keys.toList()

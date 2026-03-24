@@ -11,18 +11,30 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.pano.tutorialmaker.model.TriggerType
 import com.pano.tutorialmaker.model.TutorialSection
+import com.pano.tutorialmaker.tagging.TutorialTagRegistry
 
 @Composable
 fun SectionTimeline(
@@ -36,6 +48,7 @@ fun SectionTimeline(
     onAddStep: (sectionIndex: Int) -> Unit,
     onRemoveStep: (sectionIndex: Int, stepIndex: Int) -> Unit,
     onMoveStep: (sectionIndex: Int, fromIndex: Int, toIndex: Int) -> Unit,
+    onSectionChanged: (sectionIndex: Int, TutorialSection) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -82,6 +95,66 @@ fun SectionTimeline(
                 )
             }
 
+            // Section config row
+            if (selectedSectionIndex in sections.indices) {
+                val section = sections[selectedSectionIndex]
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Section name
+                    OutlinedTextField(
+                        value = section.title,
+                        onValueChange = {
+                            onSectionChanged(selectedSectionIndex, section.copy(title = it))
+                        },
+                        label = { Text("Name") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // Trigger type
+                    FilterChip(
+                        selected = section.triggerType == TriggerType.SCREEN,
+                        onClick = {
+                            onSectionChanged(selectedSectionIndex, section.copy(triggerType = TriggerType.SCREEN))
+                        },
+                        label = { Text("Screen") }
+                    )
+                    FilterChip(
+                        selected = section.triggerType == TriggerType.ELEMENT,
+                        onClick = {
+                            onSectionChanged(selectedSectionIndex, section.copy(triggerType = TriggerType.ELEMENT))
+                        },
+                        label = { Text("Element") }
+                    )
+
+                    // Screen ID dropdown — shows registered screen tags from SectionTrigger
+                    if (section.triggerType == TriggerType.SCREEN || section.triggerType == TriggerType.ELEMENT) {
+                        ScreenDropdown(
+                            value = section.screenTag ?: "",
+                            label = "Screen",
+                            onValueChanged = {
+                                onSectionChanged(selectedSectionIndex, section.copy(screenTag = it.ifEmpty { null }))
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    // Element tag dropdown — shows registered tutorialTag elements
+                    if (section.triggerType == TriggerType.ELEMENT) {
+                        TagDropdown(
+                            value = section.elementTag ?: "",
+                            label = "Element Tag",
+                            onValueChanged = {
+                                onSectionChanged(selectedSectionIndex, section.copy(elementTag = it.ifEmpty { null }))
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
             // Steps row for selected section
             if (selectedSectionIndex in sections.indices) {
                 val section = sections[selectedSectionIndex]
@@ -110,6 +183,100 @@ fun SectionTimeline(
                         Text("Step")
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ScreenDropdown(
+    value: String,
+    label: String,
+    onValueChanged: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val availableScreens = TutorialTagRegistry.screens.keys.toList()
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = { onValueChanged(it) },
+            label = { Text(label) },
+            singleLine = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            if (availableScreens.isEmpty()) {
+                DropdownMenuItem(
+                    text = { Text("No screens registered") },
+                    onClick = { expanded = false },
+                    enabled = false
+                )
+            } else {
+                availableScreens.forEach { screen ->
+                    DropdownMenuItem(
+                        text = { Text(screen) },
+                        onClick = {
+                            onValueChanged(screen)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TagDropdown(
+    value: String,
+    label: String,
+    onValueChanged: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val availableTags = TutorialTagRegistry.elements.keys.toList()
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = { onValueChanged(it) },
+            label = { Text(label) },
+            singleLine = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            availableTags.forEach { tag ->
+                DropdownMenuItem(
+                    text = { Text(tag) },
+                    onClick = {
+                        onValueChanged(tag)
+                        expanded = false
+                    }
+                )
             }
         }
     }

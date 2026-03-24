@@ -31,6 +31,7 @@ import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,11 +46,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.pano.tutorialmaker.editor.properties.StepPropertiesPanel
 import com.pano.tutorialmaker.editor.timeline.SectionTimeline
-import com.pano.tutorialmaker.editor.tools.EditorToolbar
-import com.pano.tutorialmaker.editor.tools.HelpTextTool
-import com.pano.tutorialmaker.editor.tools.SpotlightTool
-import com.pano.tutorialmaker.editor.tools.TagOutlinesOverlay
+import com.pano.tutorialmaker.editor.tools.UnifiedEditorTool
 import com.pano.tutorialmaker.io.TutorialFileManager
+import com.pano.tutorialmaker.io.TutorialProgressManager
 import com.pano.tutorialmaker.player.TutorialPlayer
 import com.pano.tutorialmaker.tagging.TutorialTagRegistry
 import kotlin.math.roundToInt
@@ -58,7 +57,10 @@ import kotlin.math.roundToInt
 @Composable
 fun EditorOverlay(
     fileManager: TutorialFileManager,
+    progressManager: TutorialProgressManager? = null,
     onClose: () -> Unit,
+    onPreviewStart: () -> Unit = {},
+    onPreviewEnd: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val model = remember { EditorScreenModel(fileManager) }
@@ -66,11 +68,30 @@ fun EditorOverlay(
     val density = LocalDensity.current
 
     if (state.isPreviewMode) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            TutorialPlayer(
-                tutorial = state.tutorial,
-                onComplete = { model.togglePreviewMode() }
-            )
+        // True user experience preview — editor hidden, triggers fire naturally.
+        // Save/reset/reload already happened in the play button click.
+        var previewFabOffset by remember { mutableStateOf(Offset(40f, 200f)) }
+
+        // Draggable FAB to exit preview
+        SmallFloatingActionButton(
+            onClick = {
+                onPreviewEnd()
+                model.togglePreviewMode()
+            },
+            modifier = Modifier
+                .offset { IntOffset(previewFabOffset.x.roundToInt(), previewFabOffset.y.roundToInt()) }
+                .pointerInput(Unit) {
+                    detectDragGestures { change, dragAmount ->
+                        change.consume()
+                        previewFabOffset = Offset(
+                            previewFabOffset.x + dragAmount.x,
+                            previewFabOffset.y + dragAmount.y
+                        )
+                    }
+                },
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        ) {
+            Icon(Icons.Default.Close, contentDescription = "Exit Preview")
         }
         return
     }
@@ -80,53 +101,22 @@ fun EditorOverlay(
     var fabOffset by remember { mutableStateOf(Offset(40f, 300f)) }
     var propertiesExpanded by remember { mutableStateOf(false) }
 
-    // Tag outlines always visible — no touch interception
-    TagOutlinesOverlay()
-
     Box(modifier = modifier.fillMaxSize()) {
 
-        // Tool overlays — only when NOT in interactive mode
+        // Unified editor tool — only when NOT in interactive mode
         if (!interactive) {
             val step = model.selectedStep
             if (step != null) {
-                when (state.activeTool) {
-                    EditorTool.SPOTLIGHT -> {
-                        SpotlightTool(
-                            stepId = step.id,
-                            currentTarget = step.target,
-                            onTargetChanged = { newTarget ->
-                                model.updateStep(
-                                    state.selectedSectionIndex,
-                                    step.copy(target = newTarget)
-                                )
-                            }
-                        )
+                UnifiedEditorTool(
+                    step = step,
+                    onStepChanged = { updatedStep ->
+                        model.updateStep(state.selectedSectionIndex, updatedStep)
+                        // Auto-populate section tags when target changes
+                        if (updatedStep.target.tag != step.target.tag) {
+                            model.autoPopulateSectionTags(state.selectedSectionIndex, updatedStep)
+                        }
                     }
-                    EditorTool.HELP_TEXT -> {
-                        val flatIndex = state.tutorial.sections
-                            .take(state.selectedSectionIndex)
-                            .sumOf { it.steps.size } + state.selectedStepIndex
-                        val totalSteps = state.tutorial.sections.sumOf { it.steps.size }
-                        val targetRect = TutorialTagRegistry.resolve(step.target, density)
-                            ?: with(density) {
-                                val x = (step.target.fallbackXDp ?: 100f).dp.toPx()
-                                val y = (step.target.fallbackYDp ?: 100f).dp.toPx()
-                                val w = (step.target.fallbackWidthDp ?: 120f).dp.toPx()
-                                val h = (step.target.fallbackHeightDp ?: 48f).dp.toPx()
-                                androidx.compose.ui.geometry.Rect(x, y, x + w, y + h)
-                            }
-
-                        HelpTextTool(
-                            step = step,
-                            targetRect = targetRect,
-                            stepIndex = flatIndex,
-                            totalSteps = totalSteps,
-                            onStepChanged = { updatedStep ->
-                                model.updateStep(state.selectedSectionIndex, updatedStep)
-                            }
-                        )
-                    }
-                }
+                )
             }
         }
 
@@ -145,17 +135,23 @@ fun EditorOverlay(
                         onHideChrome = { chromeVisible = false },
                         isInteractive = interactive,
                         onToggleInteractive = { interactive = !interactive },
-                        onTogglePreview = { model.togglePreviewMode() },
+                        onTogglePreview = {
+                            model.saveTutorial()
+                            val tutorial = model.state.value.tutorial
+                            // Reset progress from selected section onward
+                            val sections = tutorial.sections
+                            for (i in state.selectedSectionIndex until sections.size) {
+                                progressManager?.resetSection(tutorial.id, sections[i].id)
+                            }
+                            onPreviewStart()
+                            model.togglePreviewMode()
+                        },
                         onSave = { model.saveTutorial() },
                         onLoad = { id -> model.loadTutorial(id) },
                         onNew = { model.newTutorial() },
                         onNameChanged = { model.updateTutorialName(it) }
                     )
-                    EditorToolbar(
-                        activeTool = state.activeTool,
-                        onToolSelected = { model.setActiveTool(it) }
-                    )
-                }
+}
             }
 
             // Bottom panel
@@ -176,7 +172,8 @@ fun EditorOverlay(
                         onRemoveSection = { model.removeSection(it) },
                         onAddStep = { model.addStep(it) },
                         onRemoveStep = { secIdx, stepIdx -> model.removeStep(secIdx, stepIdx) },
-                        onMoveStep = { secIdx, from, to -> model.reorderSteps(secIdx, from, to) }
+                        onMoveStep = { secIdx, from, to -> model.reorderSteps(secIdx, from, to) },
+                        onSectionChanged = { secIdx, section -> model.updateSection(secIdx, section) }
                     )
 
                     Row(

@@ -1,10 +1,6 @@
 package com.pano.tutorialmaker.player
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -12,13 +8,11 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.onSizeChanged
@@ -30,17 +24,12 @@ import com.pano.tutorialmaker.model.TextPosition
 import kotlin.math.roundToInt
 
 @Composable
-fun TutorialTextBubble(
+fun WalkthroughHint(
     text: String,
     textPosition: TextPosition,
     targetRect: Rect,
-    stepIndex: Int,
-    totalSteps: Int,
     textOffsetXDp: Float,
     textOffsetYDp: Float,
-    onNext: () -> Unit,
-    onBack: () -> Unit,
-    onSkip: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -88,49 +77,19 @@ fun TutorialTextBubble(
                     val clampedY = rawOffsetY.coerceIn(margin, (screenH - bubbleSize.height - margin).coerceAtLeast(margin))
                     IntOffset(clampedX.roundToInt(), clampedY.roundToInt())
                 }
-                .widthIn(max = 300.dp)
+                .widthIn(max = 280.dp)
                 .onSizeChanged { bubbleSize = it },
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = MaterialTheme.colorScheme.primaryContainer
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${stepIndex + 1}/$totalSteps",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        TextButton(onClick = onSkip) {
-                            Text("Skip")
-                        }
-                        if (stepIndex > 0) {
-                            TextButton(onClick = onBack) {
-                                Text("Back")
-                            }
-                        }
-                        TextButton(onClick = onNext) {
-                            Text(if (stepIndex < totalSteps - 1) "Next" else "Done")
-                        }
-                    }
-                }
-            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.padding(12.dp)
+            )
         }
     }
 }

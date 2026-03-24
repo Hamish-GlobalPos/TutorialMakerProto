@@ -201,7 +201,8 @@ class EditorScreen(
                     onRemoveSection = { model.removeSection(it) },
                     onAddStep = { model.addStep(it) },
                     onRemoveStep = { secIdx, stepIdx -> model.removeStep(secIdx, stepIdx) },
-                    onMoveStep = { secIdx, from, to -> model.reorderSteps(secIdx, from, to) }
+                    onMoveStep = { secIdx, from, to -> model.reorderSteps(secIdx, from, to) },
+                    onSectionChanged = { secIdx, section -> model.updateSection(secIdx, section) }
                 )
             }
         }

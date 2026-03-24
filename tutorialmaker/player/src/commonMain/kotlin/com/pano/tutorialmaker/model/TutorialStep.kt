@@ -3,6 +3,14 @@ package com.pano.tutorialmaker.model
 import kotlinx.serialization.Serializable
 
 @Serializable
+enum class StepMode {
+    /** Show text bubble with Next/Back/Skip buttons */
+    TOOLTIP,
+    /** User must tap the target to advance — tap passes through to the app */
+    WALKTHROUGH
+}
+
+@Serializable
 data class TutorialStep(
     val id: String,
     val target: TargetSpec = TargetSpec(),
@@ -12,5 +20,6 @@ data class TutorialStep(
     val textPosition: TextPosition = TextPosition.BELOW,
     val textOffsetXDp: Float = 0f,
     val textOffsetYDp: Float = 0f,
-    val dismissOnTargetClick: Boolean = false
+    val mode: StepMode = StepMode.TOOLTIP,
+    val dismissOnTargetClick: Boolean = true
 )

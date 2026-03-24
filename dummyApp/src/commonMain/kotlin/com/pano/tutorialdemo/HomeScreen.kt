@@ -1,6 +1,7 @@
 package com.pano.tutorialdemo
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
+import com.pano.tutorialmaker.LocalTutorialContext
+import com.pano.tutorialmaker.player.SectionTrigger
 import com.pano.tutorialmaker.tagging.tutorialTag
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -38,87 +41,102 @@ class HomeScreen : Screen {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
+        val tutorialContext = LocalTutorialContext.current
 
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("Tutorial Demo") },
-                    modifier = Modifier.tutorialTag("home_top_bar"),
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
+        Box(modifier = Modifier.fillMaxSize()) {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = { Text("Tutorial Demo") },
+                        modifier = Modifier.tutorialTag("home_top_bar"),
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
                     )
-                )
-            },
-            bottomBar = {
-                BottomAppBar(modifier = Modifier.tutorialTag("home_bottom_bar")) {
-                    NavigationBarItem(
-                        selected = true,
+                },
+                bottomBar = {
+                    BottomAppBar(modifier = Modifier.tutorialTag("home_bottom_bar")) {
+                        NavigationBarItem(
+                            selected = true,
+                            onClick = { },
+                            icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                            label = { Text("Home") },
+                            modifier = Modifier.tutorialTag("home_nav_home")
+                        )
+                        NavigationBarItem(
+                            selected = false,
+                            onClick = { navigator.push(SettingsScreen()) },
+                            icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+                            label = { Text("Settings") },
+                            modifier = Modifier.tutorialTag("home_nav_settings")
+                        )
+                    }
+                },
+                floatingActionButton = {
+                    FloatingActionButton(
                         onClick = { },
-                        icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                        label = { Text("Home") },
-                        modifier = Modifier.tutorialTag("home_nav_home")
-                    )
-                    NavigationBarItem(
-                        selected = false,
-                        onClick = { navigator.push(SettingsScreen()) },
-                        icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                        label = { Text("Settings") },
-                        modifier = Modifier.tutorialTag("home_nav_settings")
-                    )
+                        modifier = Modifier.tutorialTag("home_fab")
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Add")
+                    }
                 }
-            },
-            floatingActionButton = {
-                FloatingActionButton(
-                    onClick = { },
-                    modifier = Modifier.tutorialTag("home_fab")
+            ) { paddingValues ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add")
+                    Text(
+                        text = "Welcome to the Demo App",
+                        style = MaterialTheme.typography.headlineMedium,
+                        modifier = Modifier.tutorialTag("home_welcome_text")
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = { },
+                        modifier = Modifier.fillMaxWidth().tutorialTag("home_primary_button")
+                    ) {
+                        Text("Primary Action")
+                    }
+
+                    OutlinedButton(
+                        onClick = { },
+                        modifier = Modifier.fillMaxWidth().tutorialTag("home_secondary_button")
+                    ) {
+                        Text("Secondary Action")
+                    }
+
+                    Button(
+                        onClick = { },
+                        modifier = Modifier.fillMaxWidth().tutorialTag("home_explore_button")
+                    ) {
+                        Text("Explore Features")
+                    }
+
+                    OutlinedButton(
+                        onClick = { navigator.push(SettingsScreen()) },
+                        modifier = Modifier.fillMaxWidth().tutorialTag("home_settings_button")
+                    ) {
+                        Text("Go to Settings")
+                    }
                 }
             }
-        ) { paddingValues ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Welcome to the Demo App",
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.tutorialTag("home_welcome_text")
+
+            // SectionTrigger on top of Scaffold so spotlight is visible
+            val tutorial = tutorialContext?.tutorial
+            val version = tutorialContext?.version ?: 0
+            if (tutorial != null) {
+                SectionTrigger(
+                    tutorial = tutorial,
+                    screenTag = "home",
+                    progressManager = tutorialContext.progressManager,
+                    version = version
                 )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Button(
-                    onClick = { },
-                    modifier = Modifier.fillMaxWidth().tutorialTag("home_primary_button")
-                ) {
-                    Text("Primary Action")
-                }
-
-                OutlinedButton(
-                    onClick = { },
-                    modifier = Modifier.fillMaxWidth().tutorialTag("home_secondary_button")
-                ) {
-                    Text("Secondary Action")
-                }
-
-                Button(
-                    onClick = { },
-                    modifier = Modifier.fillMaxWidth().tutorialTag("home_explore_button")
-                ) {
-                    Text("Explore Features")
-                }
-
-                OutlinedButton(
-                    onClick = { navigator.push(SettingsScreen()) },
-                    modifier = Modifier.fillMaxWidth().tutorialTag("home_settings_button")
-                ) {
-                    Text("Go to Settings")
-                }
             }
         }
     }
