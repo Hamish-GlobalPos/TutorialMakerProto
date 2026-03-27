@@ -4,6 +4,10 @@ name: Publish to GitHub Packages
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   publish:
     runs-on: macos-latest
@@ -20,6 +24,6 @@ jobs:
         run: chmod +x gradlew
 
       - name: Publish player and editor to GitHub Packages
-        run: ./gradlew :tutorialmaker:player:publishAllPublicationsToGitHubPackagesRepository :tutorialmaker:editor:publishAllPublicationsToGitHubPackagesRepository -Pgpr.owner=${{ github.repository_owner }} -Pgpr.user=${{ github.actor }} -Pgpr.key=${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew :tutorialmaker:player:publishAllPublicationsToGitHubPackagesRepository :tutorialmaker:editor:publishAllPublicationsToGitHubPackagesRepository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
