@@ -20,7 +20,6 @@ jobs:
         run: chmod +x gradlew
 
       - name: Publish player and editor to GitHub Packages
-        run: ./gradlew :tutorialmaker:player:publishAllPublicationsToGitHubPackagesRepository :tutorialmaker:editor:publishAllPublicationsToGitHubPackagesRepository
+        run: ./gradlew :tutorialmaker:player:publishAllPublicationsToGitHubPackagesRepository :tutorialmaker:editor:publishAllPublicationsToGitHubPackagesRepository -Pgpr.owner=${{ github.repository_owner }} -Pgpr.user=${{ github.actor }} -Pgpr.key=${{ secrets.GITHUB_TOKEN }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_ACTOR: ${{ github.actor }}
