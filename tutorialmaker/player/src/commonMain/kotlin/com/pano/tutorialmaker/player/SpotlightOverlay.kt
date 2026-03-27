@@ -31,6 +31,7 @@ fun SpotlightOverlay(
     paddingPx: Float,
     scrimColor: Color = Color.Black.copy(alpha = 0.7f),
     passTargetTaps: Boolean = false,
+    passAllTaps: Boolean = false,
     onScrimClick: () -> Unit = {},
     onTargetClick: () -> Unit = {}
 ) {
@@ -70,6 +71,11 @@ fun SpotlightOverlay(
                 )
             }
         }
+    }
+
+    if (passAllTaps) {
+        // Scroll mode: visual scrim only, all touches pass through so user can scroll freely
+        return
     }
 
     if (passTargetTaps) {

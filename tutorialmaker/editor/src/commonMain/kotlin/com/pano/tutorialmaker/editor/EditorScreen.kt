@@ -44,8 +44,14 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.pano.tutorialmaker.editor.properties.StepPropertiesPanel
 import com.pano.tutorialmaker.editor.timeline.SectionTimeline
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import com.pano.tutorialmaker.editor.tools.EditorToolbar
 import com.pano.tutorialmaker.editor.tools.HelpTextTool
+import com.pano.tutorialmaker.editor.tools.ScrollTriggerTool
 import com.pano.tutorialmaker.editor.tools.SpotlightTool
 import com.pano.tutorialmaker.io.TutorialFileManager
 import com.pano.tutorialmaker.player.SpotlightOverlay
@@ -149,6 +155,29 @@ class EditorScreen(
                             )
                         }
 
+                        // Always show trigger lines when in Scroll mode
+                        val triggerForDisplay = step.scrollTrigger
+                            ?: if (step.mode == com.pano.tutorialmaker.model.StepMode.SCROLL)
+                                com.pano.tutorialmaker.model.ScrollTrigger(yFraction = 0.5f) else null
+                        triggerForDisplay?.let { trigger ->
+                            if (state.activeTool != EditorTool.SCROLL_TRIGGER) {
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    val lineColor = Color.Red.copy(alpha = 0.9f)
+                                    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(16f, 8f))
+                                    trigger.yFraction?.let { frac ->
+                                        val y = frac * size.height
+                                        drawLine(lineColor, Offset(0f, y), Offset(size.width, y),
+                                            strokeWidth = 4f, pathEffect = dashEffect)
+                                    }
+                                    trigger.xFraction?.let { frac ->
+                                        val x = frac * size.width
+                                        drawLine(lineColor, Offset(x, 0f), Offset(x, size.height),
+                                            strokeWidth = 4f, pathEffect = dashEffect)
+                                    }
+                                }
+                            }
+                        }
+
                         when (state.activeTool) {
                             EditorTool.SPOTLIGHT -> {
                                 SpotlightTool(
@@ -169,11 +198,7 @@ class EditorScreen(
                                 val totalSteps = state.tutorial.sections.sumOf { it.steps.size }
                                 val targetRect = TutorialTagRegistry.resolve(step.target, density)
                                     ?: with(density) {
-                                        val x = (step.target.fallbackXDp ?: 100f).dp.toPx()
-                                        val y = (step.target.fallbackYDp ?: 100f).dp.toPx()
-                                        val w = (step.target.fallbackWidthDp ?: 120f).dp.toPx()
-                                        val h = (step.target.fallbackHeightDp ?: 48f).dp.toPx()
-                                        androidx.compose.ui.geometry.Rect(x, y, x + w, y + h)
+                                        androidx.compose.ui.geometry.Rect(100f.dp.toPx(), 100f.dp.toPx(), 220f.dp.toPx(), 148f.dp.toPx())
                                     }
 
                                 HelpTextTool(
@@ -181,6 +206,14 @@ class EditorScreen(
                                     targetRect = targetRect,
                                     stepIndex = flatIndex,
                                     totalSteps = totalSteps,
+                                    onStepChanged = { updatedStep ->
+                                        model.updateStep(state.selectedSectionIndex, updatedStep)
+                                    }
+                                )
+                            }
+                            EditorTool.SCROLL_TRIGGER -> {
+                                ScrollTriggerTool(
+                                    step = step,
                                     onStepChanged = { updatedStep ->
                                         model.updateStep(state.selectedSectionIndex, updatedStep)
                                     }

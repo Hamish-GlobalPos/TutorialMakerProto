@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
@@ -30,7 +32,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import com.pano.tutorialmaker.LocalTutorialContext
+import com.pano.tutorialmaker.TutorialHelpButton
 import com.pano.tutorialmaker.player.SectionTrigger
+import com.pano.tutorialmaker.tagging.tutorialScrollContainer
 import com.pano.tutorialmaker.tagging.tutorialTag
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -49,6 +53,7 @@ class HomeScreen : Screen {
                     TopAppBar(
                         title = { Text("Tutorial Demo") },
                         modifier = Modifier.tutorialTag("home_top_bar"),
+                        actions = { TutorialHelpButton() },
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer
                         )
@@ -81,11 +86,14 @@ class HomeScreen : Screen {
                     }
                 }
             ) { paddingValues ->
+                val scrollState = rememberScrollState()
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
-                        .padding(24.dp),
+                        .padding(24.dp)
+                        .tutorialScrollContainer("home_scroll", scrollState)
+                        .verticalScroll(scrollState),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -123,6 +131,24 @@ class HomeScreen : Screen {
                         modifier = Modifier.fillMaxWidth().tutorialTag("home_settings_button")
                     ) {
                         Text("Go to Settings")
+                    }
+
+                    Spacer(modifier = Modifier.height(300.dp))
+
+                    Button(
+                        onClick = { },
+                        modifier = Modifier.fillMaxWidth().tutorialTag("home_deep_button")
+                    ) {
+                        Text("Deep Action")
+                    }
+
+                    Spacer(modifier = Modifier.height(300.dp))
+
+                    Button(
+                        onClick = { },
+                        modifier = Modifier.fillMaxWidth().tutorialTag("home_deepest_button")
+                    ) {
+                        Text("Deepest Action")
                     }
                 }
             }

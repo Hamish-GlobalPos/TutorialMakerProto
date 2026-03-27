@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -46,6 +47,18 @@ fun EditorToolbar(
             leadingIcon = {
                 Icon(
                     Icons.Outlined.Info,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        )
+        FilterChip(
+            selected = activeTool == EditorTool.SCROLL_TRIGGER,
+            onClick = { onToolSelected(EditorTool.SCROLL_TRIGGER) },
+            label = { Text("Trigger Line") },
+            leadingIcon = {
+                Icon(
+                    Icons.Outlined.Menu,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )

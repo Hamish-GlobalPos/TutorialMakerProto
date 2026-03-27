@@ -11,6 +11,6 @@ fun main() = application {
         title = "Tutorial Maker Proto",
         state = rememberWindowState(width = 420.dp, height = 900.dp)
     ) {
-        App()
+        App(basePath = "C:/Users/servicepc/Documents/GitHub/TutorialMakerProto")
     }
 }

@@ -14,6 +14,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import com.pano.tutorialmaker.LocalTutorialContext
+import com.pano.tutorialmaker.TutorialHelpButton
 import com.pano.tutorialmaker.player.SectionTrigger
 import com.pano.tutorialmaker.tagging.tutorialTag
 import cafe.adriel.voyager.navigator.LocalNavigator
@@ -55,6 +57,7 @@ class SettingsScreen : Screen {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                             }
                         },
+                        actions = { TutorialHelpButton() },
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer
                         )
@@ -99,6 +102,27 @@ class SettingsScreen : Screen {
                         modifier = Modifier.fillMaxWidth().tutorialTag("settings_save_button")
                     ) {
                         Text("Save Settings")
+                    }
+
+                    Text(
+                        text = "Tutorial",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+
+                    val tutCtx = tutorialContext
+                    if (tutCtx != null) {
+                        SettingsToggleRow(
+                            label = "Play tutorial on every startup",
+                            checked = tutCtx.playOnEveryStart,
+                            onCheckedChange = { tutCtx.setPlayOnEveryStart(it) }
+                        )
+
+                        OutlinedButton(
+                            onClick = { tutCtx.resetAndReplay() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Reset Tutorial (plays on next start)")
+                        }
                     }
                 }
             }

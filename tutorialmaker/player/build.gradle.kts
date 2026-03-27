@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.pano.tutorialmaker"
-version = "0.3.0"
+version = "0.4.2"
 
 kotlin {
     androidTarget {
@@ -20,6 +20,13 @@ kotlin {
         publishLibraryVariants("release")
     }
     jvm("desktop")
+
+    // iOS targets — only compiled on macOS; publish via GitHub Actions (macos runner)
+    if (System.getProperty("os.name").contains("mac", ignoreCase = true)) {
+        iosX64()
+        iosArm64()
+        iosSimulatorArm64()
+    }
 
     sourceSets {
         commonMain.dependencies {

@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -32,10 +33,23 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pano.tutorialmaker.model.ScrollTrigger
+import com.pano.tutorialmaker.model.SpotlightShape
+import com.pano.tutorialmaker.model.StepMode
 import com.pano.tutorialmaker.model.TextPosition
 import com.pano.tutorialmaker.model.TutorialStep
 import com.pano.tutorialmaker.tagging.TutorialTagRegistry
+import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.roundToInt
+
+private enum class ScrollDragTarget {
+    SPOTLIGHT_BODY,
+    SPOTLIGHT_TOP_LEFT, SPOTLIGHT_TOP_RIGHT, SPOTLIGHT_BOTTOM_LEFT, SPOTLIGHT_BOTTOM_RIGHT,
+    SPOTLIGHT_TOP, SPOTLIGHT_BOTTOM, SPOTLIGHT_LEFT, SPOTLIGHT_RIGHT,
+    TRIGGER_Y, TRIGGER_X,
+    NONE
+}
 
 @Composable
 fun UnifiedEditorTool(
@@ -53,14 +67,102 @@ fun UnifiedEditorTool(
     var dragOffsetX by remember(step.id) { mutableStateOf(step.textOffsetXDp) }
     var dragOffsetY by remember(step.id) { mutableStateOf(step.textOffsetYDp) }
 
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+    val viewportWidthPx = constraints.maxWidth.toFloat()
+    val viewportHeightPx = constraints.maxHeight.toFloat()
+
+    // In scroll mode the spotlight rect is draggable independently of the bound tag.
+    // Stored as viewport fractions so position is preserved across window resizes.
+    var scrollSpotlightRect by remember(step.id) {
+        val t = step.target
+        val xFrac = t.fallbackXFrac ?: 0.05f
+        val yFrac = t.fallbackYFrac ?: 0.10f
+        val wFrac = t.fallbackWidthFrac ?: 0.90f
+        val hFrac = t.fallbackHeightFrac ?: 0.20f
+        mutableStateOf(androidx.compose.ui.geometry.Rect(
+            xFrac * viewportWidthPx,
+            yFrac * viewportHeightPx,
+            (xFrac + wFrac) * viewportWidthPx,
+            (yFrac + hFrac) * viewportHeightPx
+        ))
+    }
+
+    val isScroll = step.mode == StepMode.SCROLL
+    val savedTrigger = step.scrollTrigger ?: if (isScroll) ScrollTrigger(yFraction = 0.5f) else null
+    var triggerYFraction by remember(step.id, savedTrigger?.yFraction) { mutableStateOf(savedTrigger?.yFraction) }
+    var triggerXFraction by remember(step.id, savedTrigger?.xFraction) { mutableStateOf(savedTrigger?.xFraction) }
+
+    var scrollDragTarget by remember { mutableStateOf(ScrollDragTarget.NONE) }
+
     val dashedStroke = remember {
         Stroke(width = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f)))
     }
 
     // Canvas for tag outlines + tap to bind
     Canvas(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
+            .pointerInput(step.id, isScroll) {
+                if (!isScroll) return@pointerInput
+                val handleHitPx = with(density) { 20.dp.toPx() }
+                val triggerHitPx = with(density) { 24.dp.toPx() }
+                val minSize = 40f
+
+                fun hitTest(offset: Offset): ScrollDragTarget {
+                    val r = scrollSpotlightRect
+                    // Corner handles (priority)
+                    if ((offset - r.topLeft).getDistance() < handleHitPx) return ScrollDragTarget.SPOTLIGHT_TOP_LEFT
+                    if ((offset - Offset(r.right, r.top)).getDistance() < handleHitPx) return ScrollDragTarget.SPOTLIGHT_TOP_RIGHT
+                    if ((offset - Offset(r.left, r.bottom)).getDistance() < handleHitPx) return ScrollDragTarget.SPOTLIGHT_BOTTOM_LEFT
+                    if ((offset - r.bottomRight).getDistance() < handleHitPx) return ScrollDragTarget.SPOTLIGHT_BOTTOM_RIGHT
+                    // Edge handles
+                    if ((offset - Offset(r.center.x, r.top)).getDistance() < handleHitPx) return ScrollDragTarget.SPOTLIGHT_TOP
+                    if ((offset - Offset(r.center.x, r.bottom)).getDistance() < handleHitPx) return ScrollDragTarget.SPOTLIGHT_BOTTOM
+                    if ((offset - Offset(r.left, r.center.y)).getDistance() < handleHitPx) return ScrollDragTarget.SPOTLIGHT_LEFT
+                    if ((offset - Offset(r.right, r.center.y)).getDistance() < handleHitPx) return ScrollDragTarget.SPOTLIGHT_RIGHT
+                    // Body
+                    if (r.contains(offset)) return ScrollDragTarget.SPOTLIGHT_BODY
+                    // Trigger lines
+                    if (triggerYFraction?.let { abs(offset.y - it * size.height) < triggerHitPx } == true) return ScrollDragTarget.TRIGGER_Y
+                    if (triggerXFraction?.let { abs(offset.x - it * size.width) < triggerHitPx } == true) return ScrollDragTarget.TRIGGER_X
+                    return ScrollDragTarget.NONE
+                }
+
+                detectDragGestures(
+                    onDragStart = { offset -> scrollDragTarget = hitTest(offset) },
+                    onDragEnd = {
+                        when (scrollDragTarget) {
+                            ScrollDragTarget.TRIGGER_Y, ScrollDragTarget.TRIGGER_X ->
+                                onStepChanged(step.copy(scrollTrigger = ScrollTrigger(triggerYFraction, triggerXFraction)))
+                            ScrollDragTarget.NONE -> Unit
+                            else -> onStepChanged(step.copy(target = step.target.copy(
+                                fallbackXFrac = scrollSpotlightRect.left / viewportWidthPx,
+                                fallbackYFrac = scrollSpotlightRect.top / viewportHeightPx,
+                                fallbackWidthFrac = scrollSpotlightRect.width / viewportWidthPx,
+                                fallbackHeightFrac = scrollSpotlightRect.height / viewportHeightPx
+                            )))
+                        }
+                        scrollDragTarget = ScrollDragTarget.NONE
+                    }
+                ) { change, dragAmount ->
+                    change.consume()
+                    val r = scrollSpotlightRect
+                    scrollSpotlightRect = when (scrollDragTarget) {
+                        ScrollDragTarget.SPOTLIGHT_BODY -> r.translate(dragAmount)
+                        ScrollDragTarget.SPOTLIGHT_TOP_LEFT -> Rect((r.left + dragAmount.x).coerceAtMost(r.right - minSize), (r.top + dragAmount.y).coerceAtMost(r.bottom - minSize), r.right, r.bottom)
+                        ScrollDragTarget.SPOTLIGHT_TOP_RIGHT -> Rect(r.left, (r.top + dragAmount.y).coerceAtMost(r.bottom - minSize), (r.right + dragAmount.x).coerceAtLeast(r.left + minSize), r.bottom)
+                        ScrollDragTarget.SPOTLIGHT_BOTTOM_LEFT -> Rect((r.left + dragAmount.x).coerceAtMost(r.right - minSize), r.top, r.right, (r.bottom + dragAmount.y).coerceAtLeast(r.top + minSize))
+                        ScrollDragTarget.SPOTLIGHT_BOTTOM_RIGHT -> Rect(r.left, r.top, (r.right + dragAmount.x).coerceAtLeast(r.left + minSize), (r.bottom + dragAmount.y).coerceAtLeast(r.top + minSize))
+                        ScrollDragTarget.SPOTLIGHT_TOP -> Rect(r.left, (r.top + dragAmount.y).coerceAtMost(r.bottom - minSize), r.right, r.bottom)
+                        ScrollDragTarget.SPOTLIGHT_BOTTOM -> Rect(r.left, r.top, r.right, (r.bottom + dragAmount.y).coerceAtLeast(r.top + minSize))
+                        ScrollDragTarget.SPOTLIGHT_LEFT -> Rect((r.left + dragAmount.x).coerceAtMost(r.right - minSize), r.top, r.right, r.bottom)
+                        ScrollDragTarget.SPOTLIGHT_RIGHT -> Rect(r.left, r.top, (r.right + dragAmount.x).coerceAtLeast(r.left + minSize), r.bottom)
+                        ScrollDragTarget.TRIGGER_Y -> { triggerYFraction = triggerYFraction?.plus(dragAmount.y / size.height)?.coerceIn(0f, 1f); r }
+                        ScrollDragTarget.TRIGGER_X -> { triggerXFraction = triggerXFraction?.plus(dragAmount.x / size.width)?.coerceIn(0f, 1f); r }
+                        ScrollDragTarget.NONE -> r
+                    }
+                }
+            }
             .pointerInput(step.id, step.target) {
                 detectTapGestures(
                     onTap = { offset ->
@@ -99,6 +201,53 @@ fun UnifiedEditorTool(
                 textLayoutResult = label,
                 topLeft = Offset(rect.left, rect.top - label.size.height)
             )
+        }
+
+        // In scroll mode: draw the independent spotlight box with shape + handles
+        if (isScroll) {
+            val spotColor = Color.Yellow.copy(alpha = 0.9f)
+            val spotStroke = Stroke(width = 3f)
+            val r = scrollSpotlightRect
+            when (step.spotlightShape) {
+                SpotlightShape.CIRCLE -> {
+                    val radius = max(r.width, r.height) / 2f
+                    drawCircle(spotColor, radius = radius, center = r.center, style = spotStroke)
+                }
+                SpotlightShape.RECT -> drawRect(spotColor, r.topLeft, r.size, style = spotStroke)
+                SpotlightShape.ROUNDED_RECT -> drawRoundRect(spotColor, r.topLeft, r.size,
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(12f, 12f), style = spotStroke)
+            }
+            // Corner handles
+            listOf(r.topLeft, Offset(r.right, r.top), Offset(r.left, r.bottom), r.bottomRight)
+                .forEach { drawCircle(spotColor, radius = 8f, center = it) }
+            // Edge handles
+            listOf(Offset(r.center.x, r.top), Offset(r.center.x, r.bottom),
+                   Offset(r.left, r.center.y), Offset(r.right, r.center.y))
+                .forEach { drawRect(spotColor, Offset(it.x - 6f, it.y - 6f), androidx.compose.ui.geometry.Size(12f, 12f)) }
+            val spotLabel = textMeasurer.measure(
+                "Spotlight · ${step.spotlightShape.name.lowercase().replace('_',' ')}",
+                TextStyle(fontSize = 10.sp, color = spotColor)
+            )
+            drawText(spotLabel, topLeft = Offset(r.left, r.bottom + 4f))
+        }
+
+        // Draw scroll trigger lines
+        if (isScroll) {
+            val triggerColor = Color.Red.copy(alpha = 0.9f)
+            val triggerDash = PathEffect.dashPathEffect(floatArrayOf(16f, 8f))
+            val triggerStroke = with(density) { 3.dp.toPx() }
+            triggerYFraction?.let { frac ->
+                val y = frac * size.height
+                drawLine(triggerColor, Offset(0f, y), Offset(size.width, y), triggerStroke, pathEffect = triggerDash)
+                val label = textMeasurer.measure("Y ${(frac * 100).toInt()}%", TextStyle(fontSize = 10.sp, color = triggerColor))
+                drawText(label, topLeft = Offset(8f, y - label.size.height - 4f))
+            }
+            triggerXFraction?.let { frac ->
+                val x = frac * size.width
+                drawLine(triggerColor, Offset(x, 0f), Offset(x, size.height), triggerStroke, pathEffect = triggerDash)
+                val label = textMeasurer.measure("X ${(frac * 100).toInt()}%", TextStyle(fontSize = 10.sp, color = triggerColor))
+                drawText(label, topLeft = Offset(x + 4f, 8f))
+            }
         }
 
         // Draw guideline from target to text position
@@ -210,5 +359,6 @@ fun UnifiedEditorTool(
                 )
             }
         }
-    }
+    } // if (boundRect != null)
+    } // BoxWithConstraints
 }

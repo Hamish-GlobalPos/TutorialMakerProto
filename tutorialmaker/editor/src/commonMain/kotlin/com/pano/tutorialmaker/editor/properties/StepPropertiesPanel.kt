@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.pano.tutorialmaker.model.ScrollTrigger
 import com.pano.tutorialmaker.model.SpotlightShape
 import com.pano.tutorialmaker.model.StepMode
 import com.pano.tutorialmaker.model.TextPosition
@@ -52,13 +53,23 @@ fun StepPropertiesPanel(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = step.mode == StepMode.TOOLTIP,
-                onClick = { onStepChanged(step.copy(mode = StepMode.TOOLTIP)) },
+                onClick = { onStepChanged(step.copy(mode = StepMode.TOOLTIP, scrollTrigger = null)) },
                 label = { Text("Tooltip") }
             )
             FilterChip(
                 selected = step.mode == StepMode.WALKTHROUGH,
-                onClick = { onStepChanged(step.copy(mode = StepMode.WALKTHROUGH)) },
+                onClick = { onStepChanged(step.copy(mode = StepMode.WALKTHROUGH, scrollTrigger = null)) },
                 label = { Text("Walkthrough") }
+            )
+            FilterChip(
+                selected = step.mode == StepMode.SCROLL,
+                onClick = {
+                    onStepChanged(step.copy(
+                        mode = StepMode.SCROLL,
+                        scrollTrigger = step.scrollTrigger ?: ScrollTrigger(yFraction = 0.5f)
+                    ))
+                },
+                label = { Text("Scroll") }
             )
         }
 
@@ -180,5 +191,39 @@ fun StepPropertiesPanel(
                 onCheckedChange = { onStepChanged(step.copy(dismissOnTargetClick = it)) }
             )
         }
+
+        // Scroll trigger (only available in Scroll mode)
+        if (step.mode != StepMode.SCROLL) return@Column
+        Text("Scroll Trigger", style = MaterialTheme.typography.labelMedium)
+        val scrollTrigger = step.scrollTrigger ?: ScrollTrigger(yFraction = 0.5f)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = scrollTrigger.yFraction != null,
+                onClick = {
+                    val updated = if (scrollTrigger.yFraction != null)
+                        scrollTrigger.copy(yFraction = null)
+                    else
+                        scrollTrigger.copy(yFraction = 0.5f)
+                    onStepChanged(step.copy(scrollTrigger = updated))
+                },
+                label = { Text("Y line") }
+            )
+            FilterChip(
+                selected = scrollTrigger.xFraction != null,
+                onClick = {
+                    val updated = if (scrollTrigger.xFraction != null)
+                        scrollTrigger.copy(xFraction = null)
+                    else
+                        scrollTrigger.copy(xFraction = 0.5f)
+                    onStepChanged(step.copy(scrollTrigger = updated))
+                },
+                label = { Text("X line") }
+            )
+        }
+        Text(
+            "Drag the line in the preview to reposition",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

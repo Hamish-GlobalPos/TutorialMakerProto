@@ -1,5 +1,6 @@
 package com.pano.tutorialmaker.tagging
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
@@ -10,11 +11,24 @@ import androidx.compose.ui.unit.dp
 import com.pano.tutorialmaker.model.TargetSpec
 import com.pano.tutorialmaker.model.TutorialSection
 
+data class ScrollContainerInfo(val scrollState: ScrollState, val bounds: Rect = Rect.Zero)
+
 object TutorialTagRegistry {
 
     val elements = mutableStateMapOf<String, Rect>()
     val screens = mutableStateMapOf<String, Boolean>()
     val elementTapCallbacks = mutableStateMapOf<String, () -> Unit>()
+    val scrollContainers = mutableStateMapOf<String, ScrollContainerInfo>()
+
+
+    fun registerScrollContainer(tag: String, state: ScrollState) {
+        scrollContainers[tag] = ScrollContainerInfo(state)
+    }
+    fun updateScrollContainerBounds(tag: String, bounds: Rect) {
+        val info = scrollContainers[tag] ?: return
+        if (info.bounds != bounds) scrollContainers[tag] = info.copy(bounds = bounds)
+    }
+    fun unregisterScrollContainer(tag: String) { scrollContainers.remove(tag) }
 
     // Bridge: SectionTrigger requests sections to play, TutorialMaker observes and plays them
     var pendingPlayRequest by mutableStateOf<List<TutorialSection>?>(null)
@@ -47,24 +61,9 @@ object TutorialTagRegistry {
     }
 
     fun resolve(target: TargetSpec, density: Density): Rect? {
-        // Try tag lookup first
         target.tag?.let { tag ->
             elements[tag]?.let { return it }
         }
-
-        // Fallback to dp coordinates
-        val x = target.fallbackXDp ?: return null
-        val y = target.fallbackYDp ?: return null
-        val w = target.fallbackWidthDp ?: return null
-        val h = target.fallbackHeightDp ?: return null
-
-        with(density) {
-            return Rect(
-                left = x.dp.toPx(),
-                top = y.dp.toPx(),
-                right = (x + w).dp.toPx(),
-                bottom = (y + h).dp.toPx()
-            )
-        }
+        return null
     }
 }

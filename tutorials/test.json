@@ -1,0 +1,120 @@
+{
+    "id": "test",
+    "name": "test",
+    "sections": [
+        {
+            "id": "section_1",
+            "title": "Section 1",
+            "screenTag": "home",
+            "steps": [
+                {
+                    "id": "section_1_step_1",
+                    "target": {
+                        "tag": "home_primary_button"
+                    },
+                    "text": "New step",
+                    "textOffsetXDp": 569.7441,
+                    "textOffsetYDp": -8.456325
+                },
+                {
+                    "id": "section_1_step_2",
+                    "target": {
+                        "tag": "home_secondary_button"
+                    },
+                    "text": "New step",
+                    "textOffsetXDp": 591.4522,
+                    "textOffsetYDp": -6.465417
+                },
+                {
+                    "id": "section_1_step_3",
+                    "target": {
+                        "tag": "home_explore_button"
+                    },
+                    "text": "New step",
+                    "textOffsetXDp": 589.1295,
+                    "textOffsetYDp": -1.866169
+                },
+                {
+                    "id": "section_1_step_4",
+                    "target": {
+                        "tag": "home_settings_button"
+                    },
+                    "text": "New step",
+                    "textOffsetXDp": 565.9584,
+                    "textOffsetYDp": -5.102112
+                },
+                {
+                    "id": "section_1_step_5",
+                    "target": {
+                        "tag": "home_deep_button",
+                        "fallbackXFrac": 0.05,
+                        "fallbackYFrac": 0.10,
+                        "fallbackWidthFrac": 0.90,
+                        "fallbackHeightFrac": 0.55
+                    },
+                    "text": "New step",
+                    "textOffsetXDp": 705.6419,
+                    "textOffsetYDp": -277.07785,
+                    "mode": "SCROLL",
+                    "scrollTrigger": {
+                        "yFraction": 0.5
+                    }
+                },
+                {
+                    "id": "section_1_step_6",
+                    "target": {
+                        "tag": "home_deep_button"
+                    },
+                    "text": "New step",
+                    "textOffsetXDp": 585.5879,
+                    "textOffsetYDp": 5.387956
+                },
+                {
+                    "id": "section_1_step_7",
+                    "target": {
+                        "tag": "home_deep_button",
+                        "fallbackXFrac": 0.05,
+                        "fallbackYFrac": 0.10,
+                        "fallbackWidthFrac": 0.90,
+                        "fallbackHeightFrac": 0.55
+                    },
+                    "text": "New step",
+                    "textOffsetXDp": 756.56195,
+                    "textOffsetYDp": 89.47965,
+                    "mode": "SCROLL",
+                    "scrollTrigger": {
+                        "yFraction": 0.29848516
+                    }
+                },
+                {
+                    "id": "section_1_step_8",
+                    "target": {
+                        "tag": "home_deepest_button"
+                    },
+                    "text": "New step",
+                    "textOffsetXDp": 593.29504,
+                    "textOffsetYDp": -125.87535
+                },
+                {
+                    "id": "section_1_step_9",
+                    "target": {
+                        "tag": "home_nav_home"
+                    },
+                    "text": "New step",
+                    "textOffsetXDp": 378.04645,
+                    "textOffsetYDp": -217.78433
+                },
+                {
+                    "id": "section_1_step_10",
+                    "target": {
+                        "tag": "home_nav_settings"
+                    },
+                    "text": "New step",
+                    "textOffsetXDp": 219.28113,
+                    "textOffsetYDp": -220.6058,
+                    "mode": "WALKTHROUGH"
+                }
+            ]
+        }
+    ]
+}

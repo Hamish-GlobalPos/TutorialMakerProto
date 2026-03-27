@@ -58,8 +58,8 @@ import kotlin.math.roundToInt
 fun EditorOverlay(
     fileManager: TutorialFileManager,
     progressManager: TutorialProgressManager? = null,
-    onClose: () -> Unit,
-    onPreviewStart: () -> Unit = {},
+    onClose: (loadedTutorialId: String?) -> Unit,
+    onPreviewStart: (tutorialId: String) -> Unit = {},
     onPreviewEnd: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -131,7 +131,7 @@ fun EditorOverlay(
                     OverlayTopBar(
                         tutorialName = state.tutorial.name,
                         availableTutorialIds = state.availableTutorialIds,
-                        onClose = onClose,
+                        onClose = { onClose(state.tutorial.id) },
                         onHideChrome = { chromeVisible = false },
                         isInteractive = interactive,
                         onToggleInteractive = { interactive = !interactive },
@@ -143,7 +143,7 @@ fun EditorOverlay(
                             for (i in state.selectedSectionIndex until sections.size) {
                                 progressManager?.resetSection(tutorial.id, sections[i].id)
                             }
-                            onPreviewStart()
+                            onPreviewStart(tutorial.id)
                             model.togglePreviewMode()
                         },
                         onSave = { model.saveTutorial() },

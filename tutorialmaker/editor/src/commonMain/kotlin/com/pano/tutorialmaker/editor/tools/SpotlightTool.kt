@@ -54,10 +54,10 @@ fun SpotlightTool(
             if (boundRect != null) {
                 mutableStateOf(boundRect)
             } else {
-                val x = (currentTarget.fallbackXDp ?: 100f).dp.toPx()
-                val y = (currentTarget.fallbackYDp ?: 100f).dp.toPx()
-                val w = (currentTarget.fallbackWidthDp ?: 120f).dp.toPx()
-                val h = (currentTarget.fallbackHeightDp ?: 48f).dp.toPx()
+                val x = (currentTarget.fallbackXFrac ?: 0.25f) * 400f.dp.toPx()
+                val y = (currentTarget.fallbackYFrac ?: 0.12f) * 800f.dp.toPx()
+                val w = (currentTarget.fallbackWidthFrac ?: 0.30f) * 400f.dp.toPx()
+                val h = (currentTarget.fallbackHeightFrac ?: 0.06f) * 800f.dp.toPx()
                 mutableStateOf(Rect(x, y, x + w, y + h))
             }
         }
@@ -72,14 +72,12 @@ fun SpotlightTool(
 
     fun commitRect() {
         with(density) {
-            onTargetChanged(
-                currentTarget.copy(
-                    fallbackXDp = dragRect.left.toDp().value,
-                    fallbackYDp = dragRect.top.toDp().value,
-                    fallbackWidthDp = dragRect.width.toDp().value,
-                    fallbackHeightDp = dragRect.height.toDp().value
-                )
-            )
+            onTargetChanged(currentTarget.copy(
+                fallbackXFrac = dragRect.left / (400f.dp.toPx()),
+                fallbackYFrac = dragRect.top / (800f.dp.toPx()),
+                fallbackWidthFrac = dragRect.width / (400f.dp.toPx()),
+                fallbackHeightFrac = dragRect.height / (800f.dp.toPx())
+            ))
         }
     }
 

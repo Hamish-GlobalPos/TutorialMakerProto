@@ -1,0 +1,26 @@
+name: Publish to GitHub Packages
+
+# Run manually from the Actions tab — triggers a full publish including iOS artifacts
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Publish player and editor to GitHub Packages
+        run: ./gradlew :tutorialmaker:player:publishAllPublicationsToGitHubPackagesRepository :tutorialmaker:editor:publishAllPublicationsToGitHubPackagesRepository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
