@@ -58,7 +58,7 @@ publishing {
     repositories {
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/${project.findProperty("gpr.owner") ?: "OWNER"}/TutorialMakerProto")
+            url = uri("https://maven.pkg.github.com/${project.findProperty("gpr.owner") ?: System.getenv("GITHUB_REPOSITORY_OWNER") ?: "OWNER"}/TutorialMakerProto")
             credentials {
                 username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
                 password = project.findProperty("gpr.key") as String? ?: System.getenv("GITHUB_TOKEN")
