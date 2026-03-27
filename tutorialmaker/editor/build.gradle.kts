@@ -58,10 +58,7 @@ publishing {
     repositories {
         maven {
             name = "GitHubPackages"
-            val repoOwner = (System.getenv("GITHUB_REPOSITORY") ?: "").split("/").firstOrNull()?.takeIf { it.isNotEmpty() }
-    ?: project.findProperty("gpr.owner") as String?
-    ?: "OWNER"
-url = uri("https://maven.pkg.github.com/$repoOwner/TutorialMakerProto")
+            url = uri("https://maven.pkg.github.com/Hamish-GlobalPos/TutorialMakerProto")
             credentials {
                 username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
                 password = project.findProperty("gpr.key") as String? ?: System.getenv("GITHUB_TOKEN")
