@@ -13,7 +13,7 @@ private data class TutorialSettings(
 
 class TutorialSettingsManager(
     private val basePath: String,
-    private val fileSystem: FileSystem = FileSystem.SYSTEM
+    private val fileSystem: FileSystem = systemFileSystem
 ) {
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
     private val settingsFile get() = "$basePath/tutorial_settings.json".toPath()

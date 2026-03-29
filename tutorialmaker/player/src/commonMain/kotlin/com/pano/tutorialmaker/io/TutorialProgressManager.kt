@@ -7,7 +7,7 @@ import okio.Path.Companion.toPath
 
 class TutorialProgressManager(
     private val basePath: String,
-    private val fileSystem: FileSystem = FileSystem.SYSTEM
+    private val fileSystem: FileSystem = systemFileSystem
 ) {
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
     private val progressFile get() = "$basePath/tutorial_progress.json".toPath()

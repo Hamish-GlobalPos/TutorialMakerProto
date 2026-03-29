@@ -23,6 +23,13 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Debug — show build files
+        run: |
+          echo "=== player build.gradle.kts ==="
+          cat tutorialmaker/player/build.gradle.kts
+          echo "=== editor build.gradle.kts ==="
+          cat tutorialmaker/editor/build.gradle.kts
+
       - name: Publish player and editor to GitHub Packages
         run: ./gradlew :tutorialmaker:player:publishAllPublicationsToGitHubPackagesRepository :tutorialmaker:editor:publishAllPublicationsToGitHubPackagesRepository
         env:

@@ -8,7 +8,7 @@ import okio.Path.Companion.toPath
 
 class TutorialFileManager(
     private val basePath: String,
-    private val fileSystem: FileSystem = FileSystem.SYSTEM
+    private val fileSystem: FileSystem = systemFileSystem
 ) {
     private val json = Json {
         prettyPrint = true
