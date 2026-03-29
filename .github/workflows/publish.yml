@@ -26,4 +26,5 @@ jobs:
       - name: Publish player and editor to GitHub Packages
         run: ./gradlew :tutorialmaker:player:publishAllPublicationsToGitHubPackagesRepository :tutorialmaker:editor:publishAllPublicationsToGitHubPackagesRepository
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
