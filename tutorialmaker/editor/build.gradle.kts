@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.compose.multiplatform)
@@ -7,14 +9,12 @@ plugins {
 }
 
 group = "com.pano.tutorialmaker"
-version = "0.4.6"
+version = "0.4.8"
 
 kotlin {
     androidTarget {
-        compilations.all {
-            kotlinOptions {
-                jvmTarget = "17"
-            }
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
         }
         publishLibraryVariants("release")
     }
@@ -24,9 +24,16 @@ kotlin {
         commonMain.dependencies {
             implementation(compose.runtime)
             implementation(compose.foundation)
-            implementation(compose.material3)
+            // Explicit version, not the CMP-plugin default — must match the consuming app's
+            // material3 exactly (GuideMateRtk pins libs.compose.material3 the same way) or
+            // calls compiled here against one binary shape of e.g. ExposedDropdownMenuBox can
+            // NoSuchMethodError at runtime against a differently-shaped one on the classpath.
+            implementation(libs.compose.material3)
             implementation(compose.ui)
             implementation(compose.animation)
+            // Switching material3 above to an explicit version dropped the icon artifact that
+            // used to come in transitively via the CMP-plugin's compose.material3 accessor.
+            implementation(compose.materialIconsExtended)
             implementation(libs.voyager.navigator)
             implementation(libs.voyager.screenmodel)
             implementation(libs.okio)

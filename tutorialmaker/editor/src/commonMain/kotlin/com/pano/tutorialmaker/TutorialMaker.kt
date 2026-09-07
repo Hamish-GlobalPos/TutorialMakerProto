@@ -166,14 +166,15 @@ fun TutorialMaker(
         }
     }
 
-    // Auto-play on start: play incomplete sections (or all if playOnEveryStart)
+    // Auto-play on start: clear progress so every SectionTrigger re-queues its section as the
+    // user reaches each screen. What actually plays (and when) is decided solely by
+    // SectionTrigger -> TutorialTagRegistry.requestPlaySections below — queuing every
+    // incomplete section here too, ahead of time and regardless of which screen is visible,
+    // used to race against that per-screen mechanism and could win, starting the wrong section.
     LaunchedEffect(tutorial?.id) {
         val t = tutorial ?: return@LaunchedEffect
         if (playOnEveryStart) {
             resetAndReplay()
-        } else {
-            val incomplete = t.sections.filter { !progressManager.isSectionCompleted(t.id, it.id) }
-            if (incomplete.isNotEmpty()) activeTutorialState.playQueue(incomplete)
         }
     }
 

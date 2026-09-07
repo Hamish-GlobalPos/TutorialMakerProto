@@ -1,11 +1,12 @@
 [versions]
-kotlin = "2.1.10"
-compose-multiplatform = "1.7.3"
+kotlin = "2.3.21"
+compose-multiplatform = "1.10.3"
+compose-material3 = "1.9.0"
 voyager = "1.1.0-beta03"
 kotlinx-serialization = "1.7.3"
 okio = "3.9.1"
 androidx-activity-compose = "1.9.3"
-agp = "8.7.3"
+agp = "8.11.2"
 android-minSdk = "24"
 android-compileSdk = "35"
 android-targetSdk = "35"
@@ -17,6 +18,7 @@ voyager-transitions = { module = "cafe.adriel.voyager:voyager-transitions", vers
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity-compose" }
+compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

@@ -1,10 +1,8 @@
 package com.pano.tutorialmaker.tagging
 
 import androidx.compose.foundation.ScrollState
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -30,17 +28,27 @@ object TutorialTagRegistry {
     }
     fun unregisterScrollContainer(tag: String) { scrollContainers.remove(tag) }
 
-    // Bridge: SectionTrigger requests sections to play, TutorialMaker observes and plays them
-    var pendingPlayRequest by mutableStateOf<List<TutorialSection>?>(null)
-        private set
+    // Bridge: SectionTrigger requests sections to play, TutorialMaker observes and plays them.
+    // Multiple screens can each request in the same composition pass (e.g. two SectionTriggers
+    // mounting together on app start), so requests accumulate here instead of overwriting one
+    // another — a plain nullable slot would silently drop every request but the last.
+    private val pendingPlayQueue = mutableStateListOf<TutorialSection>()
+
+    val pendingPlayRequest: List<TutorialSection>?
+        get() = pendingPlayQueue.toList().ifEmpty { null }
 
     fun requestPlaySections(sections: List<TutorialSection>) {
-        pendingPlayRequest = sections
+        for (section in sections) {
+            if (pendingPlayQueue.none { it.id == section.id }) {
+                pendingPlayQueue.add(section)
+            }
+        }
     }
 
     fun consumePlayRequest(): List<TutorialSection>? {
-        val req = pendingPlayRequest
-        pendingPlayRequest = null
+        if (pendingPlayQueue.isEmpty()) return null
+        val req = pendingPlayQueue.toList()
+        pendingPlayQueue.clear()
         return req
     }
 

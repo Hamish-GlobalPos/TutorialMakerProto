@@ -50,23 +50,26 @@ fun TutorialPlayer(
         val viewportWidthPx = constraints.maxWidth.toFloat()
         val viewportHeightPx = constraints.maxHeight.toFloat()
 
-        // In scroll mode the spotlight uses viewport-relative fractions so it stays
-        // in the same relative position regardless of window size.
-        // The tag is used only for trigger line detection.
+        // Viewport-fraction fallback for when the tag isn't currently on screen (e.g. its
+        // screen/dialog hasn't been reached yet). In scroll mode this is also what the
+        // spotlight tracks throughout — the tag itself is only used for trigger-line detection
+        // there — but any step mode can fall back to it once the real target can't be resolved.
+        fun fallbackRect(): Rect? {
+            val t = step.target
+            return if (t.fallbackXFrac != null && t.fallbackYFrac != null &&
+                t.fallbackWidthFrac != null && t.fallbackHeightFrac != null) {
+                Rect(
+                    t.fallbackXFrac * viewportWidthPx,
+                    t.fallbackYFrac * viewportHeightPx,
+                    (t.fallbackXFrac + t.fallbackWidthFrac) * viewportWidthPx,
+                    (t.fallbackYFrac + t.fallbackHeightFrac) * viewportHeightPx
+                )
+            } else null
+        }
+
         val resolvedRect = when {
-            isScroll -> {
-                val t = step.target
-                if (t.fallbackXFrac != null && t.fallbackYFrac != null &&
-                    t.fallbackWidthFrac != null && t.fallbackHeightFrac != null) {
-                    Rect(
-                        t.fallbackXFrac * viewportWidthPx,
-                        t.fallbackYFrac * viewportHeightPx,
-                        (t.fallbackXFrac + t.fallbackWidthFrac) * viewportWidthPx,
-                        (t.fallbackYFrac + t.fallbackHeightFrac) * viewportHeightPx
-                    )
-                } else null
-            }
-            else -> TutorialTagRegistry.resolve(step.target, density)
+            isScroll -> fallbackRect()
+            else -> TutorialTagRegistry.resolve(step.target, density) ?: fallbackRect()
         }
 
         val targetFound = resolvedRect != null

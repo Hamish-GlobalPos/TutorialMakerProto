@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
@@ -8,14 +10,12 @@ plugins {
 }
 
 group = "com.pano.tutorialmaker"
-version = "0.4.6"
+version = "0.4.8"
 
 kotlin {
     androidTarget {
-        compilations.all {
-            kotlinOptions {
-                jvmTarget = "17"
-            }
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
         }
         publishLibraryVariants("release")
     }
@@ -32,7 +32,9 @@ kotlin {
         commonMain.dependencies {
             implementation(compose.runtime)
             implementation(compose.foundation)
-            implementation(compose.material3)
+            // Explicit version, not the CMP-plugin default — see the comment in
+            // tutorialmaker/editor/build.gradle.kts for why this must track the app's version.
+            implementation(libs.compose.material3)
             implementation(compose.ui)
             implementation(compose.animation)
             implementation(libs.kotlinx.serialization.json)
