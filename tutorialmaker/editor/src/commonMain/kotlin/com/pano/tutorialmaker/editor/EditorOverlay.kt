@@ -252,6 +252,7 @@ fun EditorOverlay(
                                 onStepChanged = { updatedStep ->
                                     model.updateStep(state.selectedSectionIndex, updatedStep)
                                 },
+                                sectionSteps = state.tutorial.sections.getOrNull(state.selectedSectionIndex)?.steps ?: emptyList(),
                                 modifier = Modifier.fillMaxWidth()
                             )
                         } else {

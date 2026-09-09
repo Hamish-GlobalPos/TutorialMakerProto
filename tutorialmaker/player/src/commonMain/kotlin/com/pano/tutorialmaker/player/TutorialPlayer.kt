@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import com.pano.tutorialmaker.model.AdvanceCondition
 import com.pano.tutorialmaker.model.StepMode
 import com.pano.tutorialmaker.model.Tutorial
 import com.pano.tutorialmaker.tagging.TutorialTagRegistry
@@ -134,16 +135,56 @@ fun TutorialPlayer(
         }
 
         // In walkthrough mode, register a callback on the target tag so when the user
-        // taps the actual button (through the hole), we also advance the tutorial
+        // taps the actual button (through the hole), we also advance the tutorial —
+        // unless advanceCondition says to wait for the target to actually go away instead.
         if (isWalkthrough && targetTag != null) {
             DisposableEffect(targetTag, state.currentStepIndex) {
                 val previousCallback = TutorialTagRegistry.elementTapCallbacks[targetTag]
-                TutorialTagRegistry.elementTapCallbacks[targetTag] = { state.next() }
+                TutorialTagRegistry.elementTapCallbacks[targetTag] = {
+                    if (step.advanceCondition == AdvanceCondition.TAP) state.next()
+                }
                 onDispose {
                     if (previousCallback != null) {
                         TutorialTagRegistry.elementTapCallbacks[targetTag] = previousCallback
                     } else {
                         TutorialTagRegistry.elementTapCallbacks.remove(targetTag)
+                    }
+                }
+            }
+        }
+
+        // TARGET_DISMISSED: don't trust the tap itself — wait until the target actually
+        // disappears from the registry (e.g. a dialog that only closes on valid input).
+        // If it never goes away, the step just keeps waiting instead of advancing on a
+        // click that didn't actually accomplish anything.
+        LaunchedEffect(state.flatStepIndex, targetTag, step.advanceCondition) {
+            if (targetTag == null || step.advanceCondition != AdvanceCondition.TARGET_DISMISSED) return@LaunchedEffect
+            snapshotFlow { TutorialTagRegistry.elements.containsKey(targetTag) }
+                .filter { present -> !present }
+                .first()
+            state.next()
+        }
+
+        // Branches: tapping an alternate tagged element jumps to a different step instead
+        // of advancing normally — e.g. "Yes"/"No" leading down different follow-up steps.
+        if (isWalkthrough && step.branches.isNotEmpty()) {
+            DisposableEffect(step.id, state.currentStepIndex) {
+                val previousCallbacks = step.branches.associate {
+                    it.tag to TutorialTagRegistry.elementTapCallbacks[it.tag]
+                }
+                for (branch in step.branches) {
+                    TutorialTagRegistry.elementTapCallbacks[branch.tag] = {
+                        state.jumpToStepId(branch.nextStepId)
+                    }
+                }
+                onDispose {
+                    for (branch in step.branches) {
+                        val previous = previousCallbacks[branch.tag]
+                        if (previous != null) {
+                            TutorialTagRegistry.elementTapCallbacks[branch.tag] = previous
+                        } else {
+                            TutorialTagRegistry.elementTapCallbacks.remove(branch.tag)
+                        }
                     }
                 }
             }

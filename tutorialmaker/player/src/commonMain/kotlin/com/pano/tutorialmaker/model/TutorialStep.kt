@@ -13,6 +13,30 @@ enum class StepMode {
 }
 
 @Serializable
+enum class AdvanceCondition {
+    /** Advance as soon as the target is tapped (default). */
+    TAP,
+    /**
+     * Advance only once the target's tag is no longer on screen — e.g. a dialog that only
+     * closes when the user's input was actually accepted. If the tap doesn't make the target
+     * go away (validation failed, dialog stayed open), the step just keeps waiting instead of
+     * advancing on a click that didn't actually accomplish anything.
+     */
+    TARGET_DISMISSED
+}
+
+/**
+ * An alternate path out of a WALKTHROUGH step: if the user taps [tag] instead of the step's
+ * main target, jump straight to [nextStepId] (which must be a step in the same section) rather
+ * than advancing to the next step in sequence.
+ */
+@Serializable
+data class StepBranch(
+    val tag: String = "",
+    val nextStepId: String = ""
+)
+
+@Serializable
 data class TutorialStep(
     val id: String,
     val target: TargetSpec = TargetSpec(),
@@ -26,5 +50,9 @@ data class TutorialStep(
     val textOffsetYDp: Float = 0f,
     val mode: StepMode = StepMode.TOOLTIP,
     val dismissOnTargetClick: Boolean = true,
-    val scrollTrigger: ScrollTrigger? = null
+    val scrollTrigger: ScrollTrigger? = null,
+    /** WALKTHROUGH only — when the tap on the main target actually advances the tutorial. */
+    val advanceCondition: AdvanceCondition = AdvanceCondition.TAP,
+    /** WALKTHROUGH only — alternate targets that jump elsewhere instead of advancing normally. */
+    val branches: List<StepBranch> = emptyList()
 )

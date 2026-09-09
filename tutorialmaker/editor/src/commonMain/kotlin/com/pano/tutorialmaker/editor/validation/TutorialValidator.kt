@@ -72,6 +72,23 @@ fun validateTutorial(tutorial: Tutorial): List<ValidationIssue> {
                     issues += ValidationIssue(sectionIndex, stepIndex, "Scroll step has no trigger line set.")
                 }
             }
+
+            for (branch in step.branches) {
+                if (branch.tag.isBlank()) {
+                    issues += ValidationIssue(sectionIndex, stepIndex, "A branch has no tag set.")
+                } else if (liveTags.isNotEmpty() && branch.tag !in liveTags) {
+                    issues += ValidationIssue(
+                        sectionIndex, stepIndex,
+                        "Branch tag \"${branch.tag}\" isn't currently visible — may just be on another screen, or may have been renamed/removed."
+                    )
+                }
+                if (branch.nextStepId.isBlank() || section.steps.none { it.id == branch.nextStepId }) {
+                    issues += ValidationIssue(
+                        sectionIndex, stepIndex,
+                        "A branch points to a step id (\"${branch.nextStepId}\") that isn't in this section."
+                    )
+                }
+            }
         }
     }
 

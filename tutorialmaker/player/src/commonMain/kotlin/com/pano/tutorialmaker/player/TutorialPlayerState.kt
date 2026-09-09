@@ -53,6 +53,15 @@ class TutorialPlayerState(
         }
     }
 
+    /** Jumps to a specific step id within the current section (a [StepBranch] target). No-op if not found. */
+    fun jumpToStepId(stepId: String) {
+        val section = tutorial.sections.getOrNull(currentSectionIndex) ?: return
+        val index = section.steps.indexOfFirst { it.id == stepId }
+        if (index != -1) {
+            currentStepIndex = index
+        }
+    }
+
     fun previous() {
         if (currentStepIndex > 0) {
             currentStepIndex--
