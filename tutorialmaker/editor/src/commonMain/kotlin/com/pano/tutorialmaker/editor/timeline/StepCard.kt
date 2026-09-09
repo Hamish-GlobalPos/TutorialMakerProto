@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -34,6 +35,7 @@ fun StepCard(
     canMoveRight: Boolean,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    onDuplicate: () -> Unit,
     onMoveLeft: () -> Unit,
     onMoveRight: () -> Unit,
     modifier: Modifier = Modifier
@@ -70,6 +72,16 @@ fun StepCard(
                     modifier = Modifier.weight(1f)
                 )
                 if (isSelected) {
+                    IconButton(
+                        onClick = onDuplicate,
+                        modifier = Modifier.size(18.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.ContentCopy,
+                            contentDescription = "Duplicate step",
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
                     IconButton(
                         onClick = onDelete,
                         modifier = Modifier.size(18.dp)

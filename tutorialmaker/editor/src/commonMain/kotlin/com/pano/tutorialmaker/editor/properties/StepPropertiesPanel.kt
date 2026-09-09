@@ -73,9 +73,14 @@ fun StepPropertiesPanel(
             )
         }
 
-        // Target tag dropdown
+        // Target tag dropdown — filters as you type
         val availableTags = TutorialTagRegistry.elements.keys.toList()
         var tagExpanded by remember { mutableStateOf(false) }
+        val tagFilter = step.target.tag ?: ""
+        val filteredTags = remember(availableTags, tagFilter) {
+            if (tagFilter.isEmpty()) availableTags
+            else availableTags.filter { it.contains(tagFilter, ignoreCase = true) }
+        }
 
         ExposedDropdownMenuBox(
             expanded = tagExpanded,
@@ -85,26 +90,29 @@ fun StepPropertiesPanel(
                 value = step.target.tag ?: "",
                 onValueChange = {
                     onStepChanged(step.copy(target = step.target.copy(tag = it.ifEmpty { null })))
+                    tagExpanded = true
                 },
                 label = { Text("Target Tag") },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                    .menuAnchor(MenuAnchorType.PrimaryEditable),
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = tagExpanded) },
                 singleLine = true
             )
-            ExposedDropdownMenu(
-                expanded = tagExpanded,
-                onDismissRequest = { tagExpanded = false }
-            ) {
-                availableTags.forEach { tag ->
-                    DropdownMenuItem(
-                        text = { Text(tag) },
-                        onClick = {
-                            onStepChanged(step.copy(target = step.target.copy(tag = tag)))
-                            tagExpanded = false
-                        }
-                    )
+            if (filteredTags.isNotEmpty()) {
+                ExposedDropdownMenu(
+                    expanded = tagExpanded,
+                    onDismissRequest = { tagExpanded = false }
+                ) {
+                    filteredTags.forEach { tag ->
+                        DropdownMenuItem(
+                            text = { Text(tag) },
+                            onClick = {
+                                onStepChanged(step.copy(target = step.target.copy(tag = tag)))
+                                tagExpanded = false
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -140,6 +148,21 @@ fun StepPropertiesPanel(
             modifier = Modifier.fillMaxWidth(),
             minLines = 2,
             maxLines = 5
+        )
+
+        // Help Mode text — optional override, falls back to Step Text when left blank
+        OutlinedTextField(
+            value = step.infoText,
+            onValueChange = { onStepChanged(step.copy(infoText = it)) },
+            label = { Text("Info Text (optional)") },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 2,
+            maxLines = 5
+        )
+        Text(
+            "Shown in Help Mode's on-demand tooltip. Leave blank to reuse Step Text.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         // Text position

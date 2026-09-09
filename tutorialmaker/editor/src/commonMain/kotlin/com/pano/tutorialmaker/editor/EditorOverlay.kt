@@ -1,5 +1,6 @@
 package com.pano.tutorialmaker.editor
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,8 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
@@ -39,7 +43,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
@@ -47,6 +60,9 @@ import androidx.compose.ui.unit.dp
 import com.pano.tutorialmaker.editor.properties.StepPropertiesPanel
 import com.pano.tutorialmaker.editor.timeline.SectionTimeline
 import com.pano.tutorialmaker.editor.tools.UnifiedEditorTool
+import com.pano.tutorialmaker.editor.validation.ValidationBadge
+import com.pano.tutorialmaker.editor.validation.ValidationIssue
+import com.pano.tutorialmaker.editor.validation.validateTutorial
 import com.pano.tutorialmaker.io.TutorialFileManager
 import com.pano.tutorialmaker.io.TutorialProgressManager
 import com.pano.tutorialmaker.player.TutorialPlayer
@@ -66,6 +82,7 @@ fun EditorOverlay(
     val model = remember { EditorScreenModel(fileManager) }
     val state by model.state.collectAsState()
     val density = LocalDensity.current
+    val validationIssues = validateTutorial(state.tutorial)
 
     if (state.isPreviewMode) {
         // True user experience preview — editor hidden, triggers fire naturally.
@@ -101,7 +118,26 @@ fun EditorOverlay(
     var fabOffset by remember { mutableStateOf(Offset(40f, 300f)) }
     var propertiesExpanded by remember { mutableStateOf(false) }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    val keyFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { keyFocusRequester.requestFocus() }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .focusRequester(keyFocusRequester)
+            .focusable()
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown || !event.isCtrlPressed) return@onPreviewKeyEvent false
+                when (event.key) {
+                    Key.S -> { model.saveTutorial(); true }
+                    Key.Z -> {
+                        if (event.isShiftPressed) model.redo() else model.undo()
+                        true
+                    }
+                    else -> false
+                }
+            }
+    ) {
 
         // Unified editor tool — only when NOT in interactive mode
         if (!interactive) {
@@ -131,7 +167,13 @@ fun EditorOverlay(
                     OverlayTopBar(
                         tutorialName = state.tutorial.name,
                         availableTutorialIds = state.availableTutorialIds,
-                        onClose = { onClose(state.tutorial.id) },
+                        canUndo = state.canUndo,
+                        canRedo = state.canRedo,
+                        issues = validationIssues,
+                        onClose = {
+                            model.saveTutorial()
+                            onClose(model.state.value.tutorial.id)
+                        },
                         onHideChrome = { chromeVisible = false },
                         isInteractive = interactive,
                         onToggleInteractive = { interactive = !interactive },
@@ -148,8 +190,15 @@ fun EditorOverlay(
                         },
                         onSave = { model.saveTutorial() },
                         onLoad = { id -> model.loadTutorial(id) },
+                        onDelete = { id -> model.deleteTutorial(id) },
                         onNew = { model.newTutorial() },
-                        onNameChanged = { model.updateTutorialName(it) }
+                        onNameChanged = { model.updateTutorialName(it) },
+                        onUndo = { model.undo() },
+                        onRedo = { model.redo() },
+                        onJumpToIssue = { secIdx, stepIdx ->
+                            model.selectSection(secIdx)
+                            stepIdx?.let { model.selectStep(secIdx, it) }
+                        }
                     )
 }
             }
@@ -170,8 +219,12 @@ fun EditorOverlay(
                         onSelectStep = { secIdx, stepIdx -> model.selectStep(secIdx, stepIdx) },
                         onAddSection = { model.addSection() },
                         onRemoveSection = { model.removeSection(it) },
+                        onMoveSection = { from, to -> model.reorderSections(from, to) },
+                        onDuplicateSection = { model.duplicateSection(it) },
                         onAddStep = { model.addStep(it) },
+                        onInsertStep = { secIdx, atIdx -> model.insertStep(secIdx, atIdx) },
                         onRemoveStep = { secIdx, stepIdx -> model.removeStep(secIdx, stepIdx) },
+                        onDuplicateStep = { secIdx, stepIdx -> model.duplicateStep(secIdx, stepIdx) },
                         onMoveStep = { secIdx, from, to -> model.reorderSteps(secIdx, from, to) },
                         onSectionChanged = { secIdx, section -> model.updateSection(secIdx, section) }
                     )
@@ -263,6 +316,9 @@ fun EditorOverlay(
 private fun OverlayTopBar(
     tutorialName: String,
     availableTutorialIds: List<String>,
+    canUndo: Boolean,
+    canRedo: Boolean,
+    issues: List<ValidationIssue>,
     onClose: () -> Unit,
     onHideChrome: () -> Unit,
     isInteractive: Boolean,
@@ -270,10 +326,19 @@ private fun OverlayTopBar(
     onTogglePreview: () -> Unit,
     onSave: () -> Unit,
     onLoad: (String) -> Unit,
+    onDelete: (String) -> Unit,
     onNew: () -> Unit,
-    onNameChanged: (String) -> Unit
+    onNameChanged: (String) -> Unit,
+    onUndo: () -> Unit,
+    onRedo: () -> Unit,
+    onJumpToIssue: (sectionIndex: Int, stepIndex: Int?) -> Unit
 ) {
     var loadExpanded by remember { mutableStateOf(false) }
+    var loadFilter by remember { mutableStateOf("") }
+    val filteredTutorialIds = remember(availableTutorialIds, loadFilter) {
+        if (loadFilter.isEmpty()) availableTutorialIds
+        else availableTutorialIds.filter { it.contains(loadFilter, ignoreCase = true) }
+    }
 
     Row(
         modifier = Modifier
@@ -294,6 +359,17 @@ private fun OverlayTopBar(
             modifier = Modifier.weight(1f)
         )
 
+        // Undo / Redo
+        IconButton(onClick = onUndo, enabled = canUndo) {
+            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
+        }
+        IconButton(onClick = onRedo, enabled = canRedo) {
+            Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo")
+        }
+
+        // Validation
+        ValidationBadge(issues = issues, onJump = onJumpToIssue)
+
         // Interactive toggle
         FilterChip(
             selected = isInteractive,
@@ -312,7 +388,10 @@ private fun OverlayTopBar(
 
         ExposedDropdownMenuBox(
             expanded = loadExpanded,
-            onExpandedChange = { loadExpanded = it }
+            onExpandedChange = {
+                loadExpanded = it
+                if (!it) loadFilter = ""
+            }
         ) {
             FilledTonalButton(
                 onClick = { loadExpanded = true },
@@ -322,21 +401,43 @@ private fun OverlayTopBar(
             }
             ExposedDropdownMenu(
                 expanded = loadExpanded,
-                onDismissRequest = { loadExpanded = false }
+                onDismissRequest = { loadExpanded = false; loadFilter = "" }
             ) {
-                if (availableTutorialIds.isEmpty()) {
+                if (availableTutorialIds.size > 5) {
+                    OutlinedTextField(
+                        value = loadFilter,
+                        onValueChange = { loadFilter = it },
+                        label = { Text("Search") },
+                        singleLine = true,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    )
+                }
+                if (filteredTutorialIds.isEmpty()) {
                     DropdownMenuItem(
-                        text = { Text("No saved tutorials") },
+                        text = { Text(if (availableTutorialIds.isEmpty()) "No saved tutorials" else "No matches") },
                         onClick = { loadExpanded = false },
                         enabled = false
                     )
                 } else {
-                    availableTutorialIds.forEach { id ->
+                    filteredTutorialIds.forEach { id ->
                         DropdownMenuItem(
                             text = { Text(id) },
                             onClick = {
                                 onLoad(id)
                                 loadExpanded = false
+                                loadFilter = ""
+                            },
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = { onDelete(id) },
+                                    modifier = Modifier.size(20.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Delete tutorial",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
                         )
                     }

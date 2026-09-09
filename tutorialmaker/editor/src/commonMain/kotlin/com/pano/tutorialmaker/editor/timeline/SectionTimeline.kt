@@ -6,10 +6,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,8 +49,12 @@ fun SectionTimeline(
     onSelectStep: (sectionIndex: Int, stepIndex: Int) -> Unit,
     onAddSection: () -> Unit,
     onRemoveSection: (Int) -> Unit,
+    onMoveSection: (fromIndex: Int, toIndex: Int) -> Unit,
+    onDuplicateSection: (Int) -> Unit,
     onAddStep: (sectionIndex: Int) -> Unit,
+    onInsertStep: (sectionIndex: Int, atIndex: Int) -> Unit,
     onRemoveStep: (sectionIndex: Int, stepIndex: Int) -> Unit,
+    onDuplicateStep: (sectionIndex: Int, stepIndex: Int) -> Unit,
     onMoveStep: (sectionIndex: Int, fromIndex: Int, toIndex: Int) -> Unit,
     onSectionChanged: (sectionIndex: Int, TutorialSection) -> Unit,
     modifier: Modifier = Modifier
@@ -72,15 +80,49 @@ fun SectionTimeline(
                         label = { Text(section.title.ifEmpty { "Section ${index + 1}" }) },
                         trailingIcon = if (index == selectedSectionIndex) {
                             {
-                                IconButton(
-                                    onClick = { onRemoveSection(index) },
-                                    modifier = Modifier.padding(0.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = "Remove section",
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(
+                                        onClick = { onMoveSection(index, index - 1) },
+                                        enabled = index > 0,
+                                        modifier = Modifier.size(20.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                                            contentDescription = "Move section left",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { onMoveSection(index, index + 1) },
+                                        enabled = index < sections.size - 1,
+                                        modifier = Modifier.size(20.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                            contentDescription = "Move section right",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { onDuplicateSection(index) },
+                                        modifier = Modifier.size(20.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.ContentCopy,
+                                            contentDescription = "Duplicate section",
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { onRemoveSection(index) },
                                         modifier = Modifier.padding(0.dp)
-                                    )
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Remove section",
+                                            modifier = Modifier.padding(0.dp)
+                                        )
+                                    }
                                 }
                             }
                         } else null
@@ -172,9 +214,22 @@ fun SectionTimeline(
                             canMoveRight = stepIdx < section.steps.size - 1,
                             onClick = { onSelectStep(selectedSectionIndex, stepIdx) },
                             onDelete = { onRemoveStep(selectedSectionIndex, stepIdx) },
+                            onDuplicate = { onDuplicateStep(selectedSectionIndex, stepIdx) },
                             onMoveLeft = { onMoveStep(selectedSectionIndex, stepIdx, stepIdx - 1) },
                             onMoveRight = { onMoveStep(selectedSectionIndex, stepIdx, stepIdx + 1) }
                         )
+                        if (stepIdx < section.steps.size - 1) {
+                            IconButton(
+                                onClick = { onInsertStep(selectedSectionIndex, stepIdx + 1) },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Add,
+                                    contentDescription = "Insert step here",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
                     }
                     FilledTonalButton(
                         onClick = { onAddStep(selectedSectionIndex) }
@@ -198,6 +253,10 @@ private fun ScreenDropdown(
 ) {
     val availableScreens = TutorialTagRegistry.screens.keys.toList()
     var expanded by remember { mutableStateOf(false) }
+    val filteredScreens = remember(availableScreens, value) {
+        if (value.isEmpty()) availableScreens
+        else availableScreens.filter { it.contains(value, ignoreCase = true) }
+    }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -206,26 +265,29 @@ private fun ScreenDropdown(
     ) {
         OutlinedTextField(
             value = value,
-            onValueChange = { onValueChanged(it) },
+            onValueChange = {
+                onValueChanged(it)
+                expanded = true
+            },
             label = { Text(label) },
             singleLine = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .menuAnchor(MenuAnchorType.PrimaryEditable)
         )
         ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            if (availableScreens.isEmpty()) {
+            if (filteredScreens.isEmpty()) {
                 DropdownMenuItem(
-                    text = { Text("No screens registered") },
+                    text = { Text(if (availableScreens.isEmpty()) "No screens registered" else "No matches") },
                     onClick = { expanded = false },
                     enabled = false
                 )
             } else {
-                availableScreens.forEach { screen ->
+                filteredScreens.forEach { screen ->
                     DropdownMenuItem(
                         text = { Text(screen) },
                         onClick = {
@@ -249,6 +311,10 @@ private fun TagDropdown(
 ) {
     val availableTags = TutorialTagRegistry.elements.keys.toList()
     var expanded by remember { mutableStateOf(false) }
+    val filteredTags = remember(availableTags, value) {
+        if (value.isEmpty()) availableTags
+        else availableTags.filter { it.contains(value, ignoreCase = true) }
+    }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -257,26 +323,31 @@ private fun TagDropdown(
     ) {
         OutlinedTextField(
             value = value,
-            onValueChange = { onValueChanged(it) },
+            onValueChange = {
+                onValueChanged(it)
+                expanded = true
+            },
             label = { Text(label) },
             singleLine = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .menuAnchor(MenuAnchorType.PrimaryEditable)
         )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            availableTags.forEach { tag ->
-                DropdownMenuItem(
-                    text = { Text(tag) },
-                    onClick = {
-                        onValueChanged(tag)
-                        expanded = false
-                    }
-                )
+        if (filteredTags.isNotEmpty()) {
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                filteredTags.forEach { tag ->
+                    DropdownMenuItem(
+                        text = { Text(tag) },
+                        onClick = {
+                            onValueChanged(tag)
+                            expanded = false
+                        }
+                    )
+                }
             }
         }
     }

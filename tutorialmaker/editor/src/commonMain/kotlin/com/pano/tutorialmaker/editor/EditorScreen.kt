@@ -1,5 +1,6 @@
 package com.pano.tutorialmaker.editor
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,9 +8,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.BottomSheetScaffold
@@ -30,6 +35,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +43,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
@@ -44,6 +59,9 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.pano.tutorialmaker.editor.properties.StepPropertiesPanel
 import com.pano.tutorialmaker.editor.timeline.SectionTimeline
+import com.pano.tutorialmaker.editor.validation.ValidationBadge
+import com.pano.tutorialmaker.editor.validation.ValidationIssue
+import com.pano.tutorialmaker.editor.validation.validateTutorial
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.geometry.Offset
@@ -69,6 +87,7 @@ class EditorScreen(
         val model = remember { EditorScreenModel(fileManager) }
         val state by model.state.collectAsState()
         val density = LocalDensity.current
+        val validationIssues = validateTutorial(state.tutorial)
 
         if (state.isPreviewMode) {
             // Preview mode: run the tutorial player
@@ -84,8 +103,24 @@ class EditorScreen(
         val scaffoldState = rememberBottomSheetScaffoldState(
             bottomSheetState = rememberStandardBottomSheetState(initialValue = SheetValue.PartiallyExpanded)
         )
+        val keyFocusRequester = remember { FocusRequester() }
+        LaunchedEffect(Unit) { keyFocusRequester.requestFocus() }
 
         BottomSheetScaffold(
+            modifier = Modifier
+                .focusRequester(keyFocusRequester)
+                .focusable()
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown || !event.isCtrlPressed) return@onPreviewKeyEvent false
+                    when (event.key) {
+                        Key.S -> { model.saveTutorial(); true }
+                        Key.Z -> {
+                            if (event.isShiftPressed) model.redo() else model.undo()
+                            true
+                        }
+                        else -> false
+                    }
+                },
             scaffoldState = scaffoldState,
             sheetPeekHeight = 160.dp,
             topBar = {
@@ -93,12 +128,22 @@ class EditorScreen(
                     tutorialName = state.tutorial.name,
                     isPreviewMode = state.isPreviewMode,
                     availableTutorialIds = state.availableTutorialIds,
-                    onBack = { navigator.pop() },
+                    canUndo = state.canUndo,
+                    canRedo = state.canRedo,
+                    issues = validationIssues,
+                    onBack = { model.saveTutorial(); navigator.pop() },
                     onToggleMode = { model.togglePreviewMode() },
                     onSave = { model.saveTutorial() },
                     onLoad = { id -> model.loadTutorial(id) },
+                    onDelete = { id -> model.deleteTutorial(id) },
                     onNew = { model.newTutorial() },
-                    onNameChanged = { model.updateTutorialName(it) }
+                    onNameChanged = { model.updateTutorialName(it) },
+                    onUndo = { model.undo() },
+                    onRedo = { model.redo() },
+                    onJumpToIssue = { secIdx, stepIdx ->
+                        model.selectSection(secIdx)
+                        stepIdx?.let { model.selectStep(secIdx, it) }
+                    }
                 )
             },
             sheetContent = {
@@ -232,8 +277,12 @@ class EditorScreen(
                     onSelectStep = { secIdx, stepIdx -> model.selectStep(secIdx, stepIdx) },
                     onAddSection = { model.addSection() },
                     onRemoveSection = { model.removeSection(it) },
+                    onMoveSection = { from, to -> model.reorderSections(from, to) },
+                    onDuplicateSection = { model.duplicateSection(it) },
                     onAddStep = { model.addStep(it) },
+                    onInsertStep = { secIdx, atIdx -> model.insertStep(secIdx, atIdx) },
                     onRemoveStep = { secIdx, stepIdx -> model.removeStep(secIdx, stepIdx) },
+                    onDuplicateStep = { secIdx, stepIdx -> model.duplicateStep(secIdx, stepIdx) },
                     onMoveStep = { secIdx, from, to -> model.reorderSteps(secIdx, from, to) },
                     onSectionChanged = { secIdx, section -> model.updateSection(secIdx, section) }
                 )
@@ -248,14 +297,26 @@ private fun EditorTopBar(
     tutorialName: String,
     isPreviewMode: Boolean,
     availableTutorialIds: List<String>,
+    canUndo: Boolean,
+    canRedo: Boolean,
+    issues: List<ValidationIssue>,
     onBack: () -> Unit,
     onToggleMode: () -> Unit,
     onSave: () -> Unit,
     onLoad: (String) -> Unit,
+    onDelete: (String) -> Unit,
     onNew: () -> Unit,
-    onNameChanged: (String) -> Unit
+    onNameChanged: (String) -> Unit,
+    onUndo: () -> Unit,
+    onRedo: () -> Unit,
+    onJumpToIssue: (sectionIndex: Int, stepIndex: Int?) -> Unit
 ) {
     var loadExpanded by remember { mutableStateOf(false) }
+    var loadFilter by remember { mutableStateOf("") }
+    val filteredTutorialIds = remember(availableTutorialIds, loadFilter) {
+        if (loadFilter.isEmpty()) availableTutorialIds
+        else availableTutorialIds.filter { it.contains(loadFilter, ignoreCase = true) }
+    }
 
     TopAppBar(
         title = {
@@ -273,6 +334,20 @@ private fun EditorTopBar(
             }
         },
         actions = {
+            // Undo / Redo
+            IconButton(onClick = onUndo, enabled = canUndo) {
+                Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
+            }
+            IconButton(onClick = onRedo, enabled = canRedo) {
+                Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo")
+            }
+
+            // Validation
+            ValidationBadge(
+                issues = issues,
+                onJump = onJumpToIssue
+            )
+
             // New
             IconButton(onClick = onNew) {
                 Icon(Icons.Default.Add, contentDescription = "New Tutorial")
@@ -281,7 +356,10 @@ private fun EditorTopBar(
             // Load dropdown
             ExposedDropdownMenuBox(
                 expanded = loadExpanded,
-                onExpandedChange = { loadExpanded = it }
+                onExpandedChange = {
+                    loadExpanded = it
+                    if (!it) loadFilter = ""
+                }
             ) {
                 FilledTonalButton(
                     onClick = { loadExpanded = true },
@@ -291,21 +369,43 @@ private fun EditorTopBar(
                 }
                 ExposedDropdownMenu(
                     expanded = loadExpanded,
-                    onDismissRequest = { loadExpanded = false }
+                    onDismissRequest = { loadExpanded = false; loadFilter = "" }
                 ) {
-                    if (availableTutorialIds.isEmpty()) {
+                    if (availableTutorialIds.size > 5) {
+                        OutlinedTextField(
+                            value = loadFilter,
+                            onValueChange = { loadFilter = it },
+                            label = { Text("Search") },
+                            singleLine = true,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                        )
+                    }
+                    if (filteredTutorialIds.isEmpty()) {
                         DropdownMenuItem(
-                            text = { Text("No saved tutorials") },
+                            text = { Text(if (availableTutorialIds.isEmpty()) "No saved tutorials" else "No matches") },
                             onClick = { loadExpanded = false },
                             enabled = false
                         )
                     } else {
-                        availableTutorialIds.forEach { id ->
+                        filteredTutorialIds.forEach { id ->
                             DropdownMenuItem(
                                 text = { Text(id) },
                                 onClick = {
                                     onLoad(id)
                                     loadExpanded = false
+                                    loadFilter = ""
+                                },
+                                trailingIcon = {
+                                    IconButton(
+                                        onClick = { onDelete(id) },
+                                        modifier = Modifier.size(20.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Delete tutorial",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                             )
                         }

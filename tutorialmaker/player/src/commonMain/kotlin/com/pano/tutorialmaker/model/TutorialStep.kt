@@ -19,6 +19,8 @@ data class TutorialStep(
     val spotlightShape: SpotlightShape = SpotlightShape.ROUNDED_RECT,
     val spotlightPaddingDp: Float = 8f,
     val text: String = "",
+    /** Text shown in Help Mode's on-demand tooltip. Falls back to [text] when blank. */
+    val infoText: String = "",
     val textPosition: TextPosition = TextPosition.BELOW,
     val textOffsetXDp: Float = 0f,
     val textOffsetYDp: Float = 0f,

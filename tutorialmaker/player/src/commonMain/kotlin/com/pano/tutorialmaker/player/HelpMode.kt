@@ -37,8 +37,13 @@ fun HelpMode(
         val step = activeStep
         val rect = activeRect
         val paddingPx = with(density) { step.spotlightPaddingDp.dp.toPx() }
+        val displayText = step.infoText.ifBlank { step.text }
 
         Box(modifier = modifier.fillMaxSize()) {
+            // Block all taps here — tapping the highlighted area dismisses the tooltip,
+            // it does not interact with the real button underneath. The help toggle FAB
+            // is composed after (on top of) this overlay in TutorialMaker, so it keeps
+            // receiving its own taps regardless.
             SpotlightOverlay(
                 targetRect = rect,
                 shape = step.spotlightShape,
@@ -49,7 +54,7 @@ fun HelpMode(
 
             if (step.mode == StepMode.WALKTHROUGH) {
                 WalkthroughHint(
-                    text = step.text,
+                    text = displayText,
                     textPosition = step.textPosition,
                     targetRect = rect,
                     textOffsetXDp = step.textOffsetXDp,
@@ -57,7 +62,7 @@ fun HelpMode(
                 )
             } else {
                 TutorialTextBubble(
-                    text = step.text,
+                    text = displayText,
                     textPosition = step.textPosition,
                     targetRect = rect,
                     stepIndex = 0,

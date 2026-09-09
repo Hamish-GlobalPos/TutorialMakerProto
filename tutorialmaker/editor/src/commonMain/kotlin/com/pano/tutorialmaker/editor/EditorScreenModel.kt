@@ -12,14 +12,28 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+private const val MAX_HISTORY = 50
+
 data class EditorState(
     val tutorial: Tutorial = Tutorial(id = "new_tutorial", name = "New Tutorial"),
     val selectedSectionIndex: Int = 0,
     val selectedStepIndex: Int = 0,
     val isPreviewMode: Boolean = false,
     val activeTool: EditorTool = EditorTool.SPOTLIGHT,
-    val availableTutorialIds: List<String> = emptyList()
-)
+    val availableTutorialIds: List<String> = emptyList(),
+    val undoStack: List<Tutorial> = emptyList(),
+    val redoStack: List<Tutorial> = emptyList()
+) {
+    val canUndo: Boolean get() = undoStack.isNotEmpty()
+    val canRedo: Boolean get() = redoStack.isNotEmpty()
+
+    /** Call from a mutating update, passing the tutorial as it was BEFORE the mutation. */
+    fun pushUndo(previousTutorial: Tutorial): EditorState =
+        copy(
+            undoStack = (undoStack + previousTutorial).takeLast(MAX_HISTORY),
+            redoStack = emptyList()
+        )
+}
 
 class EditorScreenModel(
     private val fileManager: TutorialFileManager
@@ -55,6 +69,34 @@ class EditorScreenModel(
         _state.update { it.copy(selectedSectionIndex = sectionIndex, selectedStepIndex = stepIndex) }
     }
 
+    // --- Undo / Redo ---
+
+    fun undo() {
+        _state.update { state ->
+            val previous = state.undoStack.lastOrNull() ?: return@update state
+            state.copy(
+                tutorial = previous,
+                undoStack = state.undoStack.dropLast(1),
+                redoStack = (state.redoStack + state.tutorial).takeLast(MAX_HISTORY),
+                selectedSectionIndex = state.selectedSectionIndex.coerceIn(0, (previous.sections.size - 1).coerceAtLeast(0)),
+                selectedStepIndex = 0
+            )
+        }
+    }
+
+    fun redo() {
+        _state.update { state ->
+            val next = state.redoStack.lastOrNull() ?: return@update state
+            state.copy(
+                tutorial = next,
+                redoStack = state.redoStack.dropLast(1),
+                undoStack = (state.undoStack + state.tutorial).takeLast(MAX_HISTORY),
+                selectedSectionIndex = state.selectedSectionIndex.coerceIn(0, (next.sections.size - 1).coerceAtLeast(0)),
+                selectedStepIndex = 0
+            )
+        }
+    }
+
     // --- Sections ---
 
     fun addSection() {
@@ -70,7 +112,28 @@ class EditorScreenModel(
                 tutorial = state.tutorial.copy(sections = sections + newSection),
                 selectedSectionIndex = sections.size,
                 selectedStepIndex = 0
+            ).pushUndo(state.tutorial)
+        }
+    }
+
+    fun duplicateSection(sectionIndex: Int) {
+        _state.update { state ->
+            val sections = state.tutorial.sections.toMutableList()
+            val original = sections.getOrNull(sectionIndex) ?: return@update state
+            val newId = "${original.id}_copy_${System.currentTimeMillis()}"
+            val copy = original.copy(
+                id = newId,
+                title = "${original.title} Copy".trim(),
+                steps = original.steps.mapIndexed { idx, step ->
+                    step.copy(id = "${newId}_step_${idx + 1}")
+                }
             )
+            sections.add(sectionIndex + 1, copy)
+            state.copy(
+                tutorial = state.tutorial.copy(sections = sections),
+                selectedSectionIndex = sectionIndex + 1,
+                selectedStepIndex = 0
+            ).pushUndo(state.tutorial)
         }
     }
 
@@ -94,7 +157,7 @@ class EditorScreenModel(
             }
 
             sections[sectionIndex] = updated
-            state.copy(tutorial = state.tutorial.copy(sections = sections))
+            state.copy(tutorial = state.tutorial.copy(sections = sections)).pushUndo(state.tutorial)
         }
     }
 
@@ -103,7 +166,7 @@ class EditorScreenModel(
             val sections = state.tutorial.sections.toMutableList()
             if (index !in sections.indices) return@update state
             sections[index] = section
-            state.copy(tutorial = state.tutorial.copy(sections = sections))
+            state.copy(tutorial = state.tutorial.copy(sections = sections)).pushUndo(state.tutorial)
         }
     }
 
@@ -116,7 +179,7 @@ class EditorScreenModel(
                 tutorial = state.tutorial.copy(sections = sections),
                 selectedSectionIndex = (state.selectedSectionIndex).coerceAtMost((sections.size - 1).coerceAtLeast(0)),
                 selectedStepIndex = 0
-            )
+            ).pushUndo(state.tutorial)
         }
     }
 
@@ -129,7 +192,7 @@ class EditorScreenModel(
             state.copy(
                 tutorial = state.tutorial.copy(sections = sections),
                 selectedSectionIndex = toIndex
-            )
+            ).pushUndo(state.tutorial)
         }
     }
 
@@ -150,7 +213,45 @@ class EditorScreenModel(
                 tutorial = state.tutorial.copy(sections = sections),
                 selectedSectionIndex = sectionIndex,
                 selectedStepIndex = steps.size - 1
+            ).pushUndo(state.tutorial)
+        }
+    }
+
+    /** Inserts a new step at [atIndex], shifting existing steps at/after it to the right. */
+    fun insertStep(sectionIndex: Int, atIndex: Int) {
+        _state.update { state ->
+            val sections = state.tutorial.sections.toMutableList()
+            val section = sections.getOrNull(sectionIndex) ?: return@update state
+            val steps = section.steps.toMutableList()
+            val insertIndex = atIndex.coerceIn(0, steps.size)
+            val newStep = TutorialStep(
+                id = "${section.id}_step_${System.currentTimeMillis()}",
+                text = "New step"
             )
+            steps.add(insertIndex, newStep)
+            sections[sectionIndex] = section.copy(steps = steps)
+            state.copy(
+                tutorial = state.tutorial.copy(sections = sections),
+                selectedSectionIndex = sectionIndex,
+                selectedStepIndex = insertIndex
+            ).pushUndo(state.tutorial)
+        }
+    }
+
+    fun duplicateStep(sectionIndex: Int, stepIndex: Int) {
+        _state.update { state ->
+            val sections = state.tutorial.sections.toMutableList()
+            val section = sections.getOrNull(sectionIndex) ?: return@update state
+            val steps = section.steps.toMutableList()
+            val original = steps.getOrNull(stepIndex) ?: return@update state
+            val copy = original.copy(id = "${section.id}_step_${System.currentTimeMillis()}")
+            steps.add(stepIndex + 1, copy)
+            sections[sectionIndex] = section.copy(steps = steps)
+            state.copy(
+                tutorial = state.tutorial.copy(sections = sections),
+                selectedSectionIndex = sectionIndex,
+                selectedStepIndex = stepIndex + 1
+            ).pushUndo(state.tutorial)
         }
     }
 
@@ -165,7 +266,7 @@ class EditorScreenModel(
             state.copy(
                 tutorial = state.tutorial.copy(sections = sections),
                 selectedStepIndex = (state.selectedStepIndex).coerceAtMost((steps.size - 1).coerceAtLeast(0))
-            )
+            ).pushUndo(state.tutorial)
         }
     }
 
@@ -181,7 +282,7 @@ class EditorScreenModel(
             state.copy(
                 tutorial = state.tutorial.copy(sections = sections),
                 selectedStepIndex = toIndex
-            )
+            ).pushUndo(state.tutorial)
         }
     }
 
@@ -194,18 +295,18 @@ class EditorScreenModel(
             if (idx == -1) return@update state
             steps[idx] = step
             sections[sectionIndex] = section.copy(steps = steps)
-            state.copy(tutorial = state.tutorial.copy(sections = sections))
+            state.copy(tutorial = state.tutorial.copy(sections = sections)).pushUndo(state.tutorial)
         }
     }
 
     // --- Tutorial metadata ---
 
     fun updateTutorialName(name: String) {
-        _state.update { it.copy(tutorial = it.tutorial.copy(name = name)) }
+        _state.update { it.copy(tutorial = it.tutorial.copy(name = name)).pushUndo(it.tutorial) }
     }
 
     fun updateTutorialDescription(description: String) {
-        _state.update { it.copy(tutorial = it.tutorial.copy(description = description)) }
+        _state.update { it.copy(tutorial = it.tutorial.copy(description = description)).pushUndo(it.tutorial) }
     }
 
     // --- Mode ---
@@ -222,6 +323,7 @@ class EditorScreenModel(
 
     fun saveTutorial() {
         val tutorial = _state.value.tutorial
+        val oldId = tutorial.id
         // Use the name as the ID so saves are name-based
         val idFromName = tutorial.name.trim()
             .lowercase()
@@ -231,6 +333,11 @@ class EditorScreenModel(
         val updated = tutorial.copy(id = idFromName)
         _state.update { it.copy(tutorial = updated) }
         fileManager.saveTutorial(updated)
+        // A rename changes the id (it's derived from the name) — drop the stale file left
+        // behind under the old id so renaming doesn't silently leave an orphaned duplicate.
+        if (idFromName != oldId) {
+            fileManager.deleteTutorial(oldId)
+        }
         refreshTutorialList()
     }
 
@@ -241,7 +348,9 @@ class EditorScreenModel(
                 tutorial = tutorial,
                 selectedSectionIndex = 0,
                 selectedStepIndex = 0,
-                isPreviewMode = false
+                isPreviewMode = false,
+                undoStack = emptyList(),
+                redoStack = emptyList()
             )
         }
     }
@@ -253,6 +362,15 @@ class EditorScreenModel(
                 tutorial = Tutorial(id = id, name = "New Tutorial"),
                 availableTutorialIds = it.availableTutorialIds
             )
+        }
+    }
+
+    /** Deletes a saved tutorial file. If it's the one currently open, resets the editor to a new tutorial. */
+    fun deleteTutorial(id: String) {
+        fileManager.deleteTutorial(id)
+        refreshTutorialList()
+        if (_state.value.tutorial.id == id) {
+            newTutorial()
         }
     }
 
