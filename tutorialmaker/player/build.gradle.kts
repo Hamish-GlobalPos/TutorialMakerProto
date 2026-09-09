@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "com.pano.tutorialmaker"
-version = "0.4.8"
+version = "0.4.9"
 
 kotlin {
     androidTarget {
