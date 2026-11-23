@@ -312,18 +312,18 @@ fun EditorOverlay(
     }
 }
 
+/**
+ * The editor's top bar. [onClose], [onHideChrome] and [onToggleInteractive] are optional: hosts
+ * that don't have those concepts (e.g. the PC remote editor) pass null and the controls are hidden.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun OverlayTopBar(
+fun OverlayTopBar(
     tutorialName: String,
     availableTutorialIds: List<String>,
     canUndo: Boolean,
     canRedo: Boolean,
     issues: List<ValidationIssue>,
-    onClose: () -> Unit,
-    onHideChrome: () -> Unit,
-    isInteractive: Boolean,
-    onToggleInteractive: () -> Unit,
     onTogglePreview: () -> Unit,
     onSave: () -> Unit,
     onLoad: (String) -> Unit,
@@ -332,7 +332,11 @@ private fun OverlayTopBar(
     onNameChanged: (String) -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
-    onJumpToIssue: (sectionIndex: Int, stepIndex: Int?) -> Unit
+    onJumpToIssue: (sectionIndex: Int, stepIndex: Int?) -> Unit,
+    onClose: (() -> Unit)? = null,
+    onHideChrome: (() -> Unit)? = null,
+    isInteractive: Boolean = false,
+    onToggleInteractive: (() -> Unit)? = null
 ) {
     var loadExpanded by remember { mutableStateOf(false) }
     var loadFilter by remember { mutableStateOf("") }
@@ -348,8 +352,10 @@ private fun OverlayTopBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        IconButton(onClick = onClose) {
-            Icon(Icons.Default.Close, contentDescription = "Close Editor")
+        if (onClose != null) {
+            IconButton(onClick = onClose) {
+                Icon(Icons.Default.Close, contentDescription = "Close Editor")
+            }
         }
 
         OutlinedTextField(
@@ -372,15 +378,19 @@ private fun OverlayTopBar(
         ValidationBadge(issues = issues, onJump = onJumpToIssue)
 
         // Interactive toggle
-        FilterChip(
-            selected = isInteractive,
-            onClick = onToggleInteractive,
-            label = { Text(if (isInteractive) "Interactive" else "Editing") }
-        )
+        if (onToggleInteractive != null) {
+            FilterChip(
+                selected = isInteractive,
+                onClick = onToggleInteractive,
+                label = { Text(if (isInteractive) "Interactive" else "Editing") }
+            )
+        }
 
         // Hide chrome
-        IconButton(onClick = onHideChrome) {
-            Text("H", style = MaterialTheme.typography.titleSmall)
+        if (onHideChrome != null) {
+            IconButton(onClick = onHideChrome) {
+                Text("H", style = MaterialTheme.typography.titleSmall)
+            }
         }
 
         IconButton(onClick = onNew) {

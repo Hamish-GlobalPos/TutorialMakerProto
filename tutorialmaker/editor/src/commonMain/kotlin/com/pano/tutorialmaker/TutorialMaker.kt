@@ -36,6 +36,7 @@ import com.pano.tutorialmaker.model.TutorialSection
 import com.pano.tutorialmaker.model.TutorialStep
 import com.pano.tutorialmaker.player.HelpMode
 import com.pano.tutorialmaker.player.TutorialPlayer
+import com.pano.tutorialmaker.remote.RemoteEditorBridge
 import com.pano.tutorialmaker.tagging.TutorialTagRegistry
 
 /**
@@ -210,6 +211,18 @@ fun TutorialMaker(
         helpModeActive && helpEnabledState && tutorial != null && !activeTutorialState.isPlaying
     )
     val currentTagStepMap by rememberUpdatedState(tagStepMap)
+
+    // Streams tag bounds to the PC remote editor (no-op unless a client connects over adb).
+    if (editorEnabled) {
+        RemoteEditorBridge(
+            fileManager = fileManager,
+            progressManager = progressManager,
+            onTutorialChanged = { id ->
+                if (id != null) lastEditorTutorialId = id
+                reloadKey++
+            }
+        )
+    }
 
     CompositionLocalProvider(LocalTutorialContext provides tutorialContext) {
         Box(

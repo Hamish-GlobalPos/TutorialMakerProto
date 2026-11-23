@@ -9,7 +9,7 @@ import com.pano.tutorialmaker.TutorialMaker
 @Composable
 fun App(basePath: String = ".") {
     MaterialTheme {
-        TutorialMaker(basePath = basePath, tutorialId = "test", editorEnabled = true) {
+        TutorialMaker(basePath = basePath, editorEnabled = true) {
             Navigator(screen = HomeScreen()) { navigator ->
                 SlideTransition(navigator)
             }

@@ -21,7 +21,8 @@ import com.pano.tutorialmaker.tagging.TutorialTagRegistry
  */
 @Composable
 fun SectionTrigger(
-    tutorial: Tutorial,
+    /** Null while no tutorial is loaded: the screen is still registered so the editor can offer it. */
+    tutorial: Tutorial?,
     screenTag: String,
     progressManager: TutorialProgressManager,
     version: Int = 0,
@@ -34,6 +35,8 @@ fun SectionTrigger(
         TutorialTagRegistry.registerScreen(screenTag)
         onDispose { TutorialTagRegistry.unregisterScreen(screenTag) }
     }
+
+    if (tutorial == null) return
 
     val screenSections = remember(tutorial, screenTag, version) {
         tutorial.sections.filter { it.screenTag == screenTag && it.triggerType == TriggerType.SCREEN }

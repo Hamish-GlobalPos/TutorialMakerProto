@@ -23,6 +23,7 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.ui)
             implementation(compose.animation)
+            implementation(compose.materialIconsExtended)
             implementation(compose.components.resources)
             implementation(libs.voyager.navigator)
             implementation(libs.voyager.screenmodel)

@@ -156,7 +156,7 @@ class HomeScreen : Screen {
             // SectionTrigger on top of Scaffold so spotlight is visible
             val tutorial = tutorialContext?.tutorial
             val version = tutorialContext?.version ?: 0
-            if (tutorial != null) {
+            if (tutorialContext != null) {
                 SectionTrigger(
                     tutorial = tutorial,
                     screenTag = "home",

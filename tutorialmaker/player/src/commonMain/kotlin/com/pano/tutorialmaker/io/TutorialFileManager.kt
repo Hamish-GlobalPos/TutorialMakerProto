@@ -36,6 +36,18 @@ class TutorialFileManager(
         return json.decodeFromString<Tutorial>(content)
     }
 
+    /** The raw JSON text of a saved tutorial, for syncing files between devices untouched. */
+    fun readRaw(id: String): String? {
+        val filePath = tutorialsDir / "$id.json"
+        if (!fileSystem.exists(filePath)) return null
+        return fileSystem.read(filePath) { readUtf8() }
+    }
+
+    fun writeRaw(id: String, content: String) {
+        fileSystem.createDirectories(tutorialsDir)
+        fileSystem.write(tutorialsDir / "$id.json") { writeUtf8(content) }
+    }
+
     fun listTutorials(): List<String> {
         if (!fileSystem.exists(tutorialsDir)) return emptyList()
         return fileSystem.list(tutorialsDir)

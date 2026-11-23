@@ -19,3 +19,4 @@ rootProject.name = "TutorialMakerProto"
 include(":dummyApp")
 include(":tutorialmaker:player")
 include(":tutorialmaker:editor")
+include(":remoteEditor")
