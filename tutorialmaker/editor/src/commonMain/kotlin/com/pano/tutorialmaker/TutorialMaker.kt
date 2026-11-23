@@ -22,6 +22,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -246,8 +247,44 @@ fun TutorialMaker(
                     }
                 }
         ) {
-            // App content
-            content()
+            // App content. While help mode is on, taps on it must not reach the app's own buttons
+            // (help mode only explains them), so taps are swallowed here. Drags still pass through
+            // so the user can scroll to reach more elements. The FABs and overlays are siblings of
+            // this Box, so they stay usable.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            var downPosition: Offset? = null
+                            var dragged = false
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                val change = event.changes.firstOrNull() ?: continue
+                                when (event.type) {
+                                    PointerEventType.Press -> {
+                                        downPosition = change.position
+                                        dragged = false
+                                    }
+                                    PointerEventType.Move -> {
+                                        val start = downPosition
+                                        if (start != null && (change.position - start).getDistance() > viewConfiguration.touchSlop) {
+                                            dragged = true
+                                        }
+                                    }
+                                    PointerEventType.Release -> {
+                                        // A consumed release makes the button's click detector treat
+                                        // the gesture as cancelled, so nothing fires.
+                                        if (helpTapEnabled && !dragged) event.changes.forEach { it.consume() }
+                                        downPosition = null
+                                    }
+                                }
+                            }
+                        }
+                    }
+            ) {
+                content()
+            }
 
             // Active tutorial player — lives at root level, survives screen navigation
             val activeSection = activeTutorialState.activeSection

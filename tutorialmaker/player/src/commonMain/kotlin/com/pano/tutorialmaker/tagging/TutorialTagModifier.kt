@@ -22,7 +22,8 @@ fun Modifier.tutorialTag(tag: String): Modifier = composed {
         awaitPointerEventScope {
             while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Initial)
-                if (event.type == PointerEventType.Release) {
+                // A consumed release was swallowed by an ancestor (help mode blocks taps), so it is not a tap.
+                if (event.type == PointerEventType.Release && event.changes.none { it.isConsumed }) {
                     TutorialTagRegistry.elementTapCallbacks[tag]?.invoke()
                 }
             }

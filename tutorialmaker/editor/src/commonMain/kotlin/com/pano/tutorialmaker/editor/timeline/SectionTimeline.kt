@@ -1,5 +1,6 @@
 package com.pano.tutorialmaker.editor.timeline
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -57,7 +58,14 @@ fun SectionTimeline(
     onDuplicateStep: (sectionIndex: Int, stepIndex: Int) -> Unit,
     onMoveStep: (sectionIndex: Int, fromIndex: Int, toIndex: Int) -> Unit,
     onSectionChanged: (sectionIndex: Int, TutorialSection) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Scroll state of the section chips row; hosts can hoist it to drive it (e.g. mouse wheel on desktop). */
+    sectionsScrollState: ScrollState = rememberScrollState(),
+    /** Scroll state of the steps row. */
+    stepsScrollState: ScrollState = rememberScrollState(),
+    /** Extra modifiers for the two scrolling rows, e.g. to add mouse-wheel scrolling on desktop. */
+    sectionsRowModifier: Modifier = Modifier,
+    stepsRowModifier: Modifier = Modifier
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -69,7 +77,7 @@ fun SectionTimeline(
         ) {
             // Section chips row
             Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                modifier = Modifier.horizontalScroll(sectionsScrollState).then(sectionsRowModifier),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -201,7 +209,7 @@ fun SectionTimeline(
             if (selectedSectionIndex in sections.indices) {
                 val section = sections[selectedSectionIndex]
                 Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    modifier = Modifier.horizontalScroll(stepsScrollState).then(stepsRowModifier),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

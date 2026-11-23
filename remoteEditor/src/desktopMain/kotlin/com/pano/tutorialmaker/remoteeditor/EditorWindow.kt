@@ -1,6 +1,20 @@
 package com.pano.tutorialmaker.remoteeditor
 
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.onPointerEvent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,6 +57,7 @@ import com.pano.tutorialmaker.tagging.TutorialTagRegistry
  * copy of the registry filled from the device's snapshots (scaled to the mirror), and the
  * existing tools work unchanged.
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun EditorWindowContent(session: RemoteSession) {
     val model = remember { EditorScreenModel(session.workspace) }
@@ -171,24 +186,59 @@ fun EditorWindowContent(session: RemoteSession) {
             }
         }
 
+        // The timeline can be taller/wider than the window: it scrolls vertically (scrollbar at the
+        // right), and the mouse wheel scrolls whichever row it is over sideways (section chips or
+        // step cards).
+        val timelineScroll = rememberScrollState()
+        val sectionsScroll = rememberScrollState()
+        val stepsScroll = rememberScrollState()
+        val scope = rememberCoroutineScope()
         Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surface, shadowElevation = 8.dp) {
-            SectionTimeline(
-                sections = state.tutorial.sections,
-                selectedSectionIndex = state.selectedSectionIndex,
-                selectedStepIndex = state.selectedStepIndex,
-                onSelectSection = { model.selectSection(it) },
-                onSelectStep = { secIdx, stepIdx -> model.selectStep(secIdx, stepIdx) },
-                onAddSection = { model.addSection() },
-                onRemoveSection = { model.removeSection(it) },
-                onMoveSection = { from, to -> model.reorderSections(from, to) },
-                onDuplicateSection = { model.duplicateSection(it) },
-                onAddStep = { model.addStep(it) },
-                onInsertStep = { secIdx, atIdx -> model.insertStep(secIdx, atIdx) },
-                onRemoveStep = { secIdx, stepIdx -> model.removeStep(secIdx, stepIdx) },
-                onDuplicateStep = { secIdx, stepIdx -> model.duplicateStep(secIdx, stepIdx) },
-                onMoveStep = { secIdx, from, to -> model.reorderSteps(secIdx, from, to) },
-                onSectionChanged = { secIdx, section -> model.updateSection(secIdx, section) }
-            )
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 300.dp)
+            ) {
+                Column(Modifier.verticalScroll(timelineScroll)) {
+                    SectionTimeline(
+                        sections = state.tutorial.sections,
+                        selectedSectionIndex = state.selectedSectionIndex,
+                        selectedStepIndex = state.selectedStepIndex,
+                        onSelectSection = { model.selectSection(it) },
+                        onSelectStep = { secIdx, stepIdx -> model.selectStep(secIdx, stepIdx) },
+                        onAddSection = { model.addSection() },
+                        onRemoveSection = { model.removeSection(it) },
+                        onMoveSection = { from, to -> model.reorderSections(from, to) },
+                        onDuplicateSection = { model.duplicateSection(it) },
+                        onAddStep = { model.addStep(it) },
+                        onInsertStep = { secIdx, atIdx -> model.insertStep(secIdx, atIdx) },
+                        onRemoveStep = { secIdx, stepIdx -> model.removeStep(secIdx, stepIdx) },
+                        onDuplicateStep = { secIdx, stepIdx -> model.duplicateStep(secIdx, stepIdx) },
+                        onMoveStep = { secIdx, from, to -> model.reorderSteps(secIdx, from, to) },
+                        onSectionChanged = { secIdx, section -> model.updateSection(secIdx, section) },
+                        sectionsScrollState = sectionsScroll,
+                        stepsScrollState = stepsScroll,
+                        sectionsRowModifier = Modifier.wheelScrolls(sectionsScroll, scope),
+                        stepsRowModifier = Modifier.wheelScrolls(stepsScroll, scope)
+                    )
+                }
+                VerticalScrollbar(
+                    adapter = rememberScrollbarAdapter(timelineScroll),
+                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
+                )
+            }
         }
     }
 }
+
+private const val WHEEL_STEP_PX = 120f
+
+/** Mouse wheel over this element scrolls [state] sideways (desktop wheels only scroll vertical areas by default). */
+@OptIn(ExperimentalComposeUiApi::class)
+private fun Modifier.wheelScrolls(state: ScrollState, scope: CoroutineScope): Modifier =
+    onPointerEvent(PointerEventType.Scroll) { event ->
+        val change = event.changes.firstOrNull() ?: return@onPointerEvent
+        val delta = (change.scrollDelta.y + change.scrollDelta.x) * WHEEL_STEP_PX
+        scope.launch { state.scrollBy(delta) }
+        event.changes.forEach { it.consume() }
+    }

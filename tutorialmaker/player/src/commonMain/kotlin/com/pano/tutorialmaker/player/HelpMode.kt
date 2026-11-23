@@ -17,8 +17,9 @@ import com.pano.tutorialmaker.tagging.TutorialTagRegistry
 /**
  * Help Mode overlay. When enabled, shows hint indicators on all tagged elements
  * that have tutorial steps. Tapping one shows its spotlight + tooltip.
- * Tap detection is handled by TutorialMaker via PointerEventPass.Initial on its root Box,
- * so touches always pass through to the app content below.
+ * Tap detection is handled by TutorialMaker via PointerEventPass.Initial on its root Box.
+ * While help mode is on, TutorialMaker also swallows taps on the app content, so tapping a
+ * button only shows its help and never triggers the real action.
  */
 @Composable
 fun HelpMode(
