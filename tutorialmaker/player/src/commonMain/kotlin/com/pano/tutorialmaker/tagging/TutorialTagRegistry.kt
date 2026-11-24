@@ -18,6 +18,12 @@ object TutorialTagRegistry {
     val elementTapCallbacks = mutableStateMapOf<String, () -> Unit>()
     val scrollContainers = mutableStateMapOf<String, ScrollContainerInfo>()
 
+    /**
+     * Screen areas that must keep receiving taps while help mode is on (the help toggle itself,
+     * when it is embedded in the app's own UI). Keyed by an object identifying each registrant.
+     */
+    val tapExemptions = mutableStateMapOf<Any, Rect>()
+
 
     fun registerScrollContainer(tag: String, state: ScrollState) {
         scrollContainers[tag] = ScrollContainerInfo(state)

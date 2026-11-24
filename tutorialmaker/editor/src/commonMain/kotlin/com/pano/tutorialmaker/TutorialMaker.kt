@@ -275,7 +275,8 @@ fun TutorialMaker(
                                     PointerEventType.Release -> {
                                         // A consumed release makes the button's click detector treat
                                         // the gesture as cancelled, so nothing fires.
-                                        if (helpTapEnabled && !dragged) event.changes.forEach { it.consume() }
+                                        val exempt = TutorialTagRegistry.tapExemptions.values.any { it.contains(change.position) }
+                                        if (helpTapEnabled && !dragged && !exempt) event.changes.forEach { it.consume() }
                                         downPosition = null
                                     }
                                 }
